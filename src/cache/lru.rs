@@ -68,10 +68,12 @@ impl<K: Clone + Eq + Hash, V: Clone> LruCache<K, V> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.map.len()
     }
 
+    #[allow(dead_code)]
     pub fn capacity(&self) -> usize {
         self.capacity
     }

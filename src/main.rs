@@ -17,6 +17,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tokio::signal;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing::{info, Level};
 use tracing_subscriber;
 
@@ -68,6 +69,11 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(api::health_handler))
         .route("/metrics", get(metrics_handler))
         .route("/", get(api::root_handler))
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+                .on_response(DefaultOnResponse::new().level(Level::INFO))
+        )
         .layer(cors);
 
     // Create server address

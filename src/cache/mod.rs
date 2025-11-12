@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::config;
 
-mod lru;
+pub mod lru;
 use lru::LruCache;
 
 pub struct EmbeddingCache {
@@ -86,6 +86,7 @@ impl EmbeddingCache {
         });
     }
 
+    #[allow(dead_code)]
     pub fn get_stats(&self) -> HashMap<String, usize> {
         let cache = self.l1_cache.read();
         let mut stats = HashMap::new();

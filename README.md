@@ -235,6 +235,53 @@ make test
 cargo test
 ```
 
+### Performance Testing
+
+The project includes comprehensive performance testing:
+
+```bash
+# Micro-benchmarks (no server required)
+make bench              # All criterion benchmarks
+make bench-cache        # Cache performance only
+make bench-tokenizer    # Tokenizer performance only
+make bench-inference    # Model inference performance only
+
+# Quick load test (k6, configurable)
+make quick-test                          # Default: 100 req, 1 user
+make quick-test NUM_REQUESTS=200         # Custom requests
+make quick-test NUM_USERS=10             # 10 concurrent users
+make quick-test NUM_REQUESTS=500 NUM_USERS=10  # Combined
+
+# Full load tests (requires running server)
+make load-test-k6       # k6 load tests only
+make load-test-wrk      # wrk load tests only
+make load-test          # Both k6 and wrk
+
+# Full suite (benchmarks + load tests)
+make perf-test
+```
+
+**Quick start for load testing:**
+```bash
+# Terminal 1: Start server
+make run
+
+# Terminal 2: Quick test (100 requests, sequential)
+make quick-test
+
+# Or customize it
+make quick-test NUM_REQUESTS=200 API_KEY=your_key
+
+# Test with concurrency
+make quick-test NUM_REQUESTS=500 NUM_USERS=10
+```
+
+See [PERFORMANCE.md](PERFORMANCE.md) for detailed documentation on:
+- Criterion micro-benchmarks
+- wrk HTTP load testing
+- k6 advanced load testing
+- Performance optimization tips
+
 ### Building
 
 ```bash

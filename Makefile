@@ -1,4 +1,4 @@
-.PHONY: help deps build run services-up services-down model init-db clean test docker-build docker-up docker-down deploy quick-deploy health-check backup create-api-key logs-prod check
+.PHONY: help deps build run services-up services-down model init-db clean test docker-build docker-up docker-down deploy quick-deploy health-check backup create-api-key logs-prod check bench bench-cache bench-tokenizer bench-inference perf-test load-test load-test-k6 load-test-wrk quick-test
 
 help:
 	@echo "FastEmbed API (Rust) - Make Commands"
@@ -20,6 +20,18 @@ help:
 	@echo "  make fmt           - Format code with rustfmt"
 	@echo "  make clippy        - Run clippy linter"
 	@echo "  make test          - Run tests"
+	@echo ""
+	@echo "Performance:"
+	@echo "  make bench         - Run all criterion benchmarks"
+	@echo "  make bench-cache   - Run cache benchmarks only"
+	@echo "  make bench-tokenizer - Run tokenizer benchmarks only"
+	@echo "  make bench-inference - Run inference benchmarks only"
+	@echo "  make quick-test    - Quick load test (k6, customizable)"
+	@echo "                       Usage: make quick-test NUM_REQUESTS=100 NUM_USERS=1"
+	@echo "  make load-test     - Run load tests (k6 + wrk)"
+	@echo "  make load-test-k6  - Run k6 load tests only"
+	@echo "  make load-test-wrk - Run wrk load tests only"
+	@echo "  make perf-test     - Run full performance test suite"
 	@echo ""
 	@echo "Production:"
 	@echo "  make docker-build  - Build production Docker image"
@@ -89,6 +101,16 @@ model:
 init-db:
 	./scripts/init_db.sh admin@example.com scale
 
+create-key:
+	@echo "Usage: make create-key EMAIL=user@example.com TIER=free"
+	@echo "Example: make create-key EMAIL=john@example.com TIER=pro"
+	@if [ -z "$(EMAIL)" ]; then \
+		echo "Error: EMAIL is required"; \
+		echo "Run: make create-key EMAIL=your@email.com TIER=free"; \
+		exit 1; \
+	fi
+	@cargo run --bin create_api_key -- $(EMAIL) $(or $(TIER),free)
+
 fmt:
 	cargo fmt
 
@@ -97,6 +119,72 @@ clippy:
 
 test:
 	cargo test
+
+bench:
+	cargo bench
+
+bench-cache:
+	cargo bench --bench cache_bench
+
+bench-tokenizer:
+	cargo bench --bench tokenizer_bench
+
+bench-inference:
+	cargo bench --bench inference_bench
+
+perf-test:
+	@echo "Running full performance test suite..."
+	@./scripts/performance/run_benchmarks.sh
+
+load-test: load-test-wrk load-test-k6
+
+load-test-k6:
+	@echo "Running k6 load tests..."
+	@if ! command -v k6 &> /dev/null; then \
+		echo "Error: k6 is not installed"; \
+		echo "Install with: brew install k6 (macOS)"; \
+		echo "Or visit: https://grafana.com/docs/k6/latest/set-up/install-k6/"; \
+		exit 1; \
+	fi
+	@if ! curl -s http://localhost:8000/health > /dev/null 2>&1; then \
+		echo "Error: Server is not running on http://localhost:8000"; \
+		echo "Start server with: make run"; \
+		exit 1; \
+	fi
+	k6 run scripts/performance/k6_test.js
+
+load-test-wrk:
+	@echo "Running wrk load tests..."
+	@if ! command -v wrk &> /dev/null; then \
+		echo "Error: wrk is not installed"; \
+		echo "Install with: brew install wrk (macOS) or apt-get install wrk (Ubuntu)"; \
+		exit 1; \
+	fi
+	@if ! curl -s http://localhost:8000/health > /dev/null 2>&1; then \
+		echo "Error: Server is not running on http://localhost:8000"; \
+		echo "Start server with: make run"; \
+		exit 1; \
+	fi
+	./scripts/performance/wrk_test.sh
+
+quick-test:
+	@if ! command -v k6 &> /dev/null; then \
+		echo "Error: k6 is not installed"; \
+		echo "Install with: brew install k6 (macOS)"; \
+		echo "Or visit: https://grafana.com/docs/k6/latest/set-up/install-k6/"; \
+		exit 1; \
+	fi
+	@if ! curl -s http://localhost:8000/health > /dev/null 2>&1; then \
+		echo "Warning: Server might not be running on http://localhost:8000"; \
+		echo "Start server with: make run"; \
+		echo ""; \
+	fi
+	@NUM_REQUESTS=$${NUM_REQUESTS:-100} \
+		NUM_USERS=$${NUM_USERS:-1} \
+		API_KEY=$${API_KEY:-fe_test_key_here} \
+		TEXT="$${TEXT:-how to reset password}" \
+		API_URL=$${API_URL:-http://localhost:8000/v1/embed} \
+		k6 run --quiet --summary-trend-stats="min,avg,med,max,p(90),p(95),p(99)" scripts/performance/quick_test.js
 
 clean:
 	cargo clean

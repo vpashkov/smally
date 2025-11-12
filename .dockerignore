@@ -51,7 +51,6 @@ logs/
 # Documentation
 README.md
 *.md
-IMPLEMENTATION.md
 
 # Deployment
 docker-compose.yml
