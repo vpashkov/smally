@@ -1,0 +1,80 @@
+---
+# FastEmbed API - Ansible Playbook
+# Configures and deploys FastEmbed API to production server
+
+- name: Deploy FastEmbed API
+  hosts: fastembed
+  become: yes
+  gather_facts: yes
+
+  vars:
+    fastembed_user: fastembed
+    fastembed_home: /home/fastembed
+    fastembed_app_dir: "{{ fastembed_home }}/fastembed-api"
+    fastembed_env: production
+
+  pre_tasks:
+    - name: Fix Docker repository conflicts
+      shell: |
+        # Remove any conflicting Docker repository entries
+        rm -f /etc/apt/sources.list.d/docker.list
+        rm -f /etc/apt/sources.list.d/archive_uri-https_download_docker_com_linux_ubuntu-noble.list
+        # Remove old GPG keys
+        rm -f /etc/apt/keyrings/docker.asc
+        rm -f /usr/share/keyrings/docker-archive-keyring.gpg
+      failed_when: false
+      changed_when: false
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      ignore_errors: yes
+
+  roles:
+    - role: common
+      tags: ['common', 'setup']
+
+    - role: docker
+      tags: ['docker', 'setup']
+
+    - role: fastembed
+      tags: ['fastembed', 'app', 'deploy']
+
+  post_tasks:
+    - name: Display deployment information
+      debug:
+        msg:
+          - "Deployment complete!"
+          - "API URL: https://{{ ansible_host }}/v1/embed"
+          - "Grafana: http://{{ ansible_host }}:3000"
+          - "Prometheus: http://{{ ansible_host }}:9090"
+          - "SSH: ssh {{ fastembed_user }}@{{ ansible_host }}"
+
+    - name: Run health check
+      command: "{{ fastembed_app_dir }}/scripts/deployment/health-check.sh"
+      become_user: "{{ fastembed_user }}"
+      register: health_check
+      changed_when: false
+      failed_when: false
+      tags: ['health']
+
+    - name: Display health check results
+      debug:
+        var: health_check.stdout_lines
+      tags: ['health']
+
+    - name: Check nginx logs if health check failed
+      when: "'failed' in health_check.stdout"
+      block:
+        - name: Show nginx container logs
+          command: docker logs fastembed-nginx --tail 50
+          become_user: "{{ fastembed_user }}"
+          register: nginx_logs
+          changed_when: false
+          ignore_errors: yes
+
+        - name: Display nginx logs
+          debug:
+            var: nginx_logs.stdout_lines
+          when: nginx_logs is defined

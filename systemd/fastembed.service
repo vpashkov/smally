@@ -1,0 +1,27 @@
+[Unit]
+Description=FastEmbed API Service
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/fastembed/fastembed-api
+User=fastembed
+Group=fastembed
+
+# Start services
+ExecStart=/usr/local/bin/docker-compose -f docker-compose.prod.yml up -d
+
+# Stop services
+ExecStop=/usr/local/bin/docker-compose -f docker-compose.prod.yml down
+
+# Reload services
+ExecReload=/usr/local/bin/docker-compose -f docker-compose.prod.yml restart
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target

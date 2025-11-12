@@ -1,0 +1,12 @@
+[Unit]
+Description=FastEmbed Daily Backup Timer
+Requires=fastembed-backup.service
+
+[Timer]
+# Run daily at 2 AM
+OnCalendar=daily
+OnCalendar=02:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

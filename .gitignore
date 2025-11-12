@@ -1,0 +1,84 @@
+# Rust build artifacts
+/target
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Cargo lock for libraries (keep it for binaries)
+# Cargo.lock
+
+# Test artifacts
+*.test
+*.profraw
+*.gcda
+*.gcno
+
+# Code coverage
+coverage/
+*.profdata
+tarpaulin-report.html
+
+# env file
+.env
+.env.local
+.env.production
+.env.backup.*
+
+# Editor/IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+tmp/
+debug/
+release/
+
+# Models
+models/
+.cache/
+*.onnx
+*.pt
+*.bin
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis
+dump.rdb
+
+# Ansible
+ansible/group_vars/all/vars.yml
+
+# SSL Certificates
+nginx/ssl/*.pem
+nginx/ssl/*.key
+
+# Backups
+backups/*.sql
+backups/*.tar.gz
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
+
+# OS
+.DS_Store
+Thumbs.db
+
+
+# Added by cargo
+
+/target

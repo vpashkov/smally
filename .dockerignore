@@ -1,0 +1,80 @@
+# Git
+.git
+.gitignore
+
+# Rust build artifacts
+target/
+**/*.rs.bk
+*.pdb
+
+# Binaries (local builds)
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+*.test
+*.out
+
+# Development files
+.env
+.env.local
+.env.production
+.air.toml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+tmp/
+
+# Models (will be mounted as volume)
+models/*
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+
+# Documentation
+README.md
+*.md
+IMPLEMENTATION.md
+
+# Deployment
+docker-compose.yml
+docker-compose.prod.yml
+ansible/
+terraform/
+scripts/deployment/
+systemd/
+nginx/
+grafana/
+prometheus/
+backups/
+
+# Go artifacts (legacy)
+go.mod
+go.sum
+go.work
+go.work.sum
+cmd/
+internal/
+
+# Scripts we don't need in container (deployment scripts handled separately)
+scripts/build.sh
+
+# Dockerfile (no need to copy itself)
+Dockerfile

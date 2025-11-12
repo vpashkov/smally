@@ -1,0 +1,14 @@
+[Unit]
+Description=FastEmbed Database Backup
+After=fastembed.service
+
+[Service]
+Type=oneshot
+User=fastembed
+Group=fastembed
+WorkingDirectory=/home/fastembed/fastembed-api
+ExecStart=/home/fastembed/fastembed-api/scripts/deployment/backup.sh
+
+# Logging
+StandardOutput=journal
+StandardError=journal

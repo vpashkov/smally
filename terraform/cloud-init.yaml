@@ -1,0 +1,87 @@
+#cloud-config
+
+# FastEmbed Server Initial Configuration
+# Runs on first boot via cloud-init
+
+hostname: ${hostname}
+
+# Package updates and upgrades
+package_update: true
+package_upgrade: true
+
+# Install essential packages
+packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - htop
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+# Configure automatic security updates
+write_files:
+  - path: /etc/apt/apt.conf.d/50unattended-upgrades
+    content: |
+      Unattended-Upgrade::Allowed-Origins {
+        "$${distro_id}:$${distro_codename}-security";
+      };
+      Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+      Unattended-Upgrade::MinimalSteps "true";
+      Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+      Unattended-Upgrade::Automatic-Reboot "false";
+
+  - path: /etc/sysctl.d/99-fastembed.conf
+    content: |
+      # FastEmbed kernel optimizations
+      net.core.somaxconn = 65535
+      net.ipv4.tcp_max_syn_backlog = 8192
+      net.ipv4.ip_local_port_range = 1024 65535
+      vm.swappiness = 10
+      fs.file-max = 2097152
+
+  - path: /etc/security/limits.d/99-fastembed.conf
+    content: |
+      # FastEmbed file limits
+      * soft nofile 65536
+      * hard nofile 65536
+
+# Run commands on first boot
+runcmd:
+  # Apply kernel parameters
+  - sysctl -p /etc/sysctl.d/99-fastembed.conf
+
+  # Configure firewall (will be managed by Terraform, but set basic rules)
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+
+  # Configure fail2ban
+  - systemctl enable fail2ban
+  - systemctl start fail2ban
+
+  # Set timezone
+  - timedatectl set-timezone UTC
+
+  # Enable automatic security updates
+  - systemctl enable unattended-upgrades
+  - systemctl start unattended-upgrades
+
+  # Create swap file (4GB)
+  - fallocate -l 4G /swapfile
+  - chmod 600 /swapfile
+  - mkswap /swapfile
+  - swapon /swapfile
+  - echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+# Final message
+final_message: "FastEmbed server setup complete. System ready for Ansible provisioning."

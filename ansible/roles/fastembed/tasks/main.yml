@@ -1,0 +1,186 @@
+---
+# FastEmbed application deployment
+
+- name: Create .ssh directory for fastembed user
+  file:
+    path: "/home/{{ fastembed_user }}/.ssh"
+    state: directory
+    owner: "{{ fastembed_user }}"
+    group: "{{ fastembed_user }}"
+    mode: '0700'
+
+- name: Copy GitHub deploy key
+  copy:
+    content: "{{ fastembed_git_deploy_key }}"
+    dest: "/home/{{ fastembed_user }}/.ssh/github_deploy_key"
+    owner: "{{ fastembed_user }}"
+    group: "{{ fastembed_user }}"
+    mode: '0600'
+  no_log: true
+  when: fastembed_git_deploy_key is defined
+
+- name: Configure SSH to use deploy key for GitHub
+  blockinfile:
+    path: "/home/{{ fastembed_user }}/.ssh/config"
+    create: yes
+    owner: "{{ fastembed_user }}"
+    group: "{{ fastembed_user }}"
+    mode: '0600'
+    block: |
+      Host github.com
+        HostName github.com
+        User git
+        IdentityFile ~/.ssh/github_deploy_key
+        StrictHostKeyChecking no
+  when: fastembed_git_deploy_key is defined
+
+- name: Create application directory
+  file:
+    path: "{{ fastembed_app_dir }}"
+    state: directory
+    owner: "{{ fastembed_user }}"
+    group: "{{ fastembed_user }}"
+    mode: '0755'
+
+- name: Clone FastEmbed repository
+  git:
+    repo: "{{ fastembed_git_repo }}"
+    dest: "{{ fastembed_app_dir }}"
+    version: "{{ fastembed_git_branch }}"
+    force: yes
+    accept_hostkey: yes
+  become_user: "{{ fastembed_user }}"
+  notify: restart fastembed
+
+- name: Create .env from template
+  template:
+    src: env.production.j2
+    dest: "{{ fastembed_app_dir }}/.env"
+    owner: "{{ fastembed_user }}"
+    group: "{{ fastembed_user }}"
+    mode: '0600'
+  notify: restart fastembed
+
+- name: Create SSL certificate directory
+  file:
+    path: "{{ fastembed_app_dir }}/nginx/ssl"
+    state: directory
+    owner: "{{ fastembed_user }}"
+    group: "{{ fastembed_user }}"
+    mode: '0755'
+
+- name: Check if SSL certificates exist
+  stat:
+    path: "{{ fastembed_app_dir }}/nginx/ssl/fullchain.pem"
+  register: ssl_cert
+
+- name: Generate self-signed SSL certificate (if not provided)
+  command: >
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048
+    -keyout {{ fastembed_app_dir }}/nginx/ssl/privkey.pem
+    -out {{ fastembed_app_dir }}/nginx/ssl/fullchain.pem
+    -subj "/CN={{ fastembed_domain }}"
+  become_user: "{{ fastembed_user }}"
+  when: not ssl_cert.stat.exists and fastembed_ssl_selfsigned
+
+- name: Copy SSL certificates (if provided)
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ fastembed_app_dir }}/nginx/ssl/{{ item.dest }}"
+    owner: "{{ fastembed_user }}"
+    group: "{{ fastembed_user }}"
+    mode: '0600'
+  loop:
+    - { src: "{{ fastembed_ssl_cert }}", dest: "fullchain.pem" }
+    - { src: "{{ fastembed_ssl_key }}", dest: "privkey.pem" }
+  when:
+    - not fastembed_ssl_selfsigned
+    - fastembed_ssl_cert is defined
+    - fastembed_ssl_key is defined
+  notify: restart fastembed
+
+- name: Create backup directory
+  file:
+    path: "{{ fastembed_backup_dir }}"
+    state: directory
+    owner: "{{ fastembed_user }}"
+    group: "{{ fastembed_user }}"
+    mode: '0755'
+
+- name: Check if deployment scripts exist
+  stat:
+    path: "{{ fastembed_app_dir }}/scripts/deployment"
+  register: deployment_scripts_dir
+
+- name: Make deployment scripts executable
+  file:
+    path: "{{ fastembed_app_dir }}/scripts/deployment/{{ item }}"
+    mode: '0755'
+  loop:
+    - deploy.sh
+    - backup.sh
+    - restore.sh
+    - health-check.sh
+  when: deployment_scripts_dir.stat.exists
+  ignore_errors: yes
+
+- name: Run deployment script
+  command: "{{ fastembed_app_dir }}/scripts/deployment/deploy.sh"
+  args:
+    chdir: "{{ fastembed_app_dir }}"
+  become_user: "{{ fastembed_user }}"
+  register: deploy_result
+  changed_when: "'Starting services' in deploy_result.stdout"
+  when: deployment_scripts_dir.stat.exists
+  ignore_errors: yes
+
+- name: Check if systemd service files exist
+  stat:
+    path: "{{ fastembed_app_dir }}/systemd"
+  register: systemd_dir
+
+- name: Copy systemd service files
+  copy:
+    src: "{{ fastembed_app_dir }}/systemd/{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    remote_src: yes
+    mode: '0644'
+  loop:
+    - fastembed.service
+    - fastembed-backup.service
+    - fastembed-backup.timer
+  when: systemd_dir.stat.exists
+  ignore_errors: yes
+  notify: reload systemd
+
+- name: Enable and start FastEmbed service
+  systemd:
+    name: fastembed
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Enable and start backup timer
+  systemd:
+    name: fastembed-backup.timer
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Wait for API to be healthy
+  uri:
+    url: "http://localhost:8000/health"
+    status_code: 200
+  register: health_check
+  until: health_check.status == 200
+  retries: 30
+  delay: 10
+
+- name: Display deployment information
+  debug:
+    msg:
+      - "FastEmbed API deployed successfully!"
+      - "API URL: https://{{ fastembed_domain }}/v1"
+      - "Metrics: http://{{ ansible_host }}:9090"
+      - "Grafana: http://{{ ansible_host }}:3000"
+      - "Check health: curl http://localhost:8000/health"

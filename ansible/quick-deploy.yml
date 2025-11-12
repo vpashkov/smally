@@ -1,0 +1,50 @@
+---
+# FastEmbed API - Quick Deploy Playbook
+# For code-only changes - skips infrastructure setup
+
+- name: Quick Deploy FastEmbed API
+  hosts: fastembed
+  become: yes
+  gather_facts: no
+
+  vars:
+    fastembed_user: fastembed
+    fastembed_home: /home/fastembed
+    fastembed_app_dir: "{{ fastembed_home }}/fastembed-api"
+
+  tasks:
+    - name: Pull latest code
+      git:
+        repo: "{{ fastembed_git_repo }}"
+        dest: "{{ fastembed_app_dir }}"
+        version: "{{ fastembed_git_branch }}"
+        force: yes
+        accept_hostkey: yes
+      become_user: "{{ fastembed_user }}"
+
+    - name: Run quick deployment script
+      command: "{{ fastembed_app_dir }}/scripts/deployment/quick-deploy.sh"
+      args:
+        chdir: "{{ fastembed_app_dir }}"
+      become_user: "{{ fastembed_user }}"
+      register: deploy_result
+
+    - name: Display deployment output
+      debug:
+        var: deploy_result.stdout_lines
+
+    - name: Wait for API to be healthy
+      uri:
+        url: "http://localhost:8000/health"
+        status_code: 200
+      register: health_check
+      until: health_check.status == 200
+      retries: 10
+      delay: 3
+
+    - name: Display success message
+      debug:
+        msg:
+          - "Quick deploy complete!"
+          - "API URL: https://{{ fastembed_domain }}/v1"
+          - "Time saved: ~3-5 minutes vs full deploy"
