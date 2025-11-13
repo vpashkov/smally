@@ -36,6 +36,7 @@ tarpaulin-report.html
 tmp/
 debug/
 release/
+dist/
 
 # Models
 models/
