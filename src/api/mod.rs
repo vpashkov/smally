@@ -6,7 +6,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 
-use crate::{cache, config, database, inference, monitoring, security};
+use crate::{billing, cache, config, database, inference, monitoring, security};
 
 #[derive(Debug, Deserialize)]
 pub struct EmbedRequest {
@@ -137,7 +137,7 @@ pub async fn create_embedding_handler(
     }
 
     // Check rate limit
-    let (is_allowed, rate_limit_info) = security::check_rate_limit(pool, &user, &key)
+    let (is_allowed, rate_limit_info) = billing::check_rate_limit(pool, &user, &key)
         .await
         .map_err(|_| ApiError::InternalError("Failed to check rate limit".to_string()))?;
 
@@ -198,7 +198,7 @@ pub async fn create_embedding_handler(
     };
 
     // Increment usage
-    let _ = security::increment_usage(pool, &user, &key, cached).await;
+    let _ = billing::increment_usage(&user, &key).await;
 
     // Calculate total latency
     let total_latency_ms = start_time.elapsed().as_millis() as f64;

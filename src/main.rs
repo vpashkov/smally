@@ -1,4 +1,5 @@
 mod api;
+mod billing;
 mod cache;
 mod config;
 mod database;
@@ -51,6 +52,11 @@ async fn main() -> anyhow::Result<()> {
     info!("Connecting to Redis...");
     cache::init_cache().await?;
     info!("Redis connected");
+
+    // Initialize usage buffer with background flush task
+    info!("Initializing usage buffer...");
+    billing::init_usage_buffer(database::get_db())?;
+    info!("Usage buffer initialized with 5-second flush interval");
 
     // Setup CORS
     let cors = CorsLayer::new()

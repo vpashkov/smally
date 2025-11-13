@@ -2,7 +2,7 @@ use anyhow::Result;
 use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
 use redis::{aio::ConnectionManager, AsyncCommands};
-use sha2::{Digest, Sha256};
+use seahash::hash;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -97,10 +97,8 @@ impl EmbeddingCache {
 
     fn get_cache_key(&self, text: &str) -> String {
         let normalized = text.trim().to_lowercase();
-        let mut hasher = Sha256::new();
-        hasher.update(normalized.as_bytes());
-        let hash = hasher.finalize();
-        format!("embed:v1:{}", hex::encode(hash))
+        let hash_value = hash(normalized.as_bytes());
+        format!("embed:v2:{:x}", hash_value)
     }
 
     fn serialize_embedding(embedding: &[f32]) -> Vec<u8> {
