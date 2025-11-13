@@ -44,10 +44,12 @@ app container:
 
 **Deployment Flow:**
 1. Ansible clones Rust repo
-2. Dockerfile builds Rust binaries (multi-stage build)
-3. Docker Compose starts services
-4. `init_db.sh` creates tables and admin user
-5. Systemd manages the service
+2. Deployment script downloads ONNX model files from Hugging Face (~86MB)
+3. Dockerfile builds Rust binaries (multi-stage build)
+4. Docker Compose starts services
+5. Model files are copied into the container volume
+6. `init_db.sh` creates tables and admin user
+7. Systemd manages the service
 
 ### 4. Database Initialization
 
@@ -153,7 +155,32 @@ Quick deploy (code changes only):
 ansible-playbook -i ansible/inventory/hosts.yml ansible/quick-deploy.yml --ask-vault-pass
 ```
 
-### 9. Troubleshooting
+### 9. Model Files
+
+The deployment script automatically downloads the ONNX model files from Hugging Face:
+- Model: sentence-transformers/all-MiniLM-L6-v2
+- Size: ~86MB total
+- Location: `models/all-MiniLM-L6-v2-onnx/`
+
+Files downloaded:
+- `model.onnx` - The ONNX runtime model
+- `vocab.txt` - Vocabulary file
+- `tokenizer.json` - Tokenizer configuration
+- `tokenizer_config.json` - Tokenizer settings
+- `config.json` - Model configuration
+- `special_tokens_map.json` - Special tokens mapping
+
+The model files are:
+1. Downloaded to the host's `models/` directory (if not already present)
+2. Copied into the Docker volume `app_models:/app/models`
+3. Used by the application at runtime
+
+**Manual download (if needed):**
+```bash
+make model
+```
+
+### 10. Troubleshooting
 
 **Issue:** "Failed to connect to database" during init_db
 
@@ -172,7 +199,25 @@ ansible-playbook -i ansible/inventory/hosts.yml ansible/quick-deploy.yml --ask-v
 docker-compose -f docker-compose.prod.yml build --no-cache app
 ```
 
-### 10. Rollback Plan
+**Issue:** "Model file not found" or inference errors
+
+**Solution:** The model files may not have been downloaded or copied correctly:
+```bash
+# Check if model files exist on host
+ls -lh models/all-MiniLM-L6-v2-onnx/
+
+# Check if model files exist in container
+docker-compose -f docker-compose.prod.yml exec app ls -lh /app/models/all-MiniLM-L6-v2-onnx/
+
+# If missing, manually copy them
+docker cp models/all-MiniLM-L6-v2-onnx fastembed-api:/app/models/
+```
+
+**Issue:** Deployment script fails with "ignore_errors"
+
+**Solution:** The Ansible playbook previously had `ignore_errors: yes` which masked deployment failures. This has been removed. Check the actual error in the deployment logs and fix the root cause.
+
+### 11. Rollback Plan
 
 If you need to rollback to the Go version:
 
@@ -180,7 +225,7 @@ If you need to rollback to the Go version:
 2. Run Ansible playbook again
 3. The Go version will be deployed
 
-### 11. Verification
+### 12. Verification
 
 After deployment, verify:
 

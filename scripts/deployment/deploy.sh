@@ -59,6 +59,40 @@ ENV_FILE=".env"
 
 log_info "Using environment file: $ENV_FILE"
 
+# Download model files if they don't exist
+if [[ ! -f models/all-MiniLM-L6-v2-onnx/model.onnx ]]; then
+  log_info "Downloading model files from Hugging Face..."
+  mkdir -p models/all-MiniLM-L6-v2-onnx
+
+  log_info "Downloading vocab.txt..."
+  curl -L -o models/all-MiniLM-L6-v2-onnx/vocab.txt \
+    https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/vocab.txt
+
+  log_info "Downloading tokenizer.json..."
+  curl -L -o models/all-MiniLM-L6-v2-onnx/tokenizer.json \
+    https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer.json
+
+  log_info "Downloading tokenizer_config.json..."
+  curl -L -o models/all-MiniLM-L6-v2-onnx/tokenizer_config.json \
+    https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json
+
+  log_info "Downloading config.json..."
+  curl -L -o models/all-MiniLM-L6-v2-onnx/config.json \
+    https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json
+
+  log_info "Downloading special_tokens_map.json..."
+  curl -L -o models/all-MiniLM-L6-v2-onnx/special_tokens_map.json \
+    https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/special_tokens_map.json
+
+  log_info "Downloading ONNX model (~86MB, this may take a while)..."
+  curl -L -o models/all-MiniLM-L6-v2-onnx/model.onnx \
+    https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx
+
+  log_info "✅ Model downloaded successfully!"
+else
+  log_info "Model files already exist, skipping download"
+fi
+
 log_info "Pulling latest images..."
 docker-compose -f docker-compose.prod.yml --env-file "$ENV_FILE" pull
 
@@ -91,6 +125,9 @@ if [ $RETRIES -eq 0 ]; then
   docker-compose -f docker-compose.prod.yml --env-file "$ENV_FILE" logs
   exit 1
 fi
+
+log_info "Copying model files to container..."
+docker cp models/all-MiniLM-L6-v2-onnx fastembed-api:/app/models/ || log_warn "Failed to copy models, they may already exist"
 
 log_info "Initializing database..."
 docker-compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec -T app /app/scripts/init_db.sh admin@example.com scale || true

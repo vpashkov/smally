@@ -132,7 +132,6 @@
   register: deploy_result
   changed_when: "'Starting services' in deploy_result.stdout"
   when: deployment_scripts_dir.stat.exists
-  ignore_errors: yes
 
 - name: Check if systemd service files exist
   stat:

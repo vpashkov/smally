@@ -25,7 +25,15 @@ WORKDIR /build
 
 # Copy Cargo files and download dependencies first (better caching)
 COPY Cargo.toml Cargo.lock build.rs ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs && echo "fn main() {}" > build.rs && cargo build --release && rm -rf src build.rs
+RUN mkdir src && \
+    mkdir benches && \
+    echo "fn main() {}" > src/main.rs && \
+    echo "fn main() {}" > build.rs && \
+    echo "fn main() {}" > benches/cache_bench.rs && \
+    echo "fn main() {}" > benches/tokenizer_bench.rs && \
+    echo "fn main() {}" > benches/inference_bench.rs && \
+    cargo build --release --bins && \
+    rm -rf src benches build.rs
 
 # Copy source code
 COPY . .
