@@ -1,4 +1,4 @@
-.PHONY: help deps build run services-up services-down model init-db clean test docker-build docker-up docker-down deploy quick-deploy health-check backup create-api-key logs-prod check bench bench-cache bench-tokenizer bench-inference perf-test load-test load-test-k6 load-test-wrk quick-test
+.PHONY: help deps build run services-up services-down model init-db clean test docker-build docker-up docker-down deploy quick-deploy health-check backup create-api-key logs-prod check bench bench-cache bench-tokenizer bench-inference perf-test load-test quick-test
 
 help:
 	@echo "Smally API (Rust) - Make Commands"
@@ -28,9 +28,7 @@ help:
 	@echo "  make bench-inference - Run inference benchmarks only"
 	@echo "  make quick-test    - Quick load test (k6, customizable)"
 	@echo "                       Usage: make quick-test NUM_REQUESTS=100 NUM_USERS=1"
-	@echo "  make load-test     - Run load tests (k6 + wrk)"
-	@echo "  make load-test-k6  - Run k6 load tests only"
-	@echo "  make load-test-wrk - Run wrk load tests only"
+	@echo "  make load-test     - Run load tests"
 	@echo "  make perf-test     - Run full performance test suite"
 	@echo ""
 	@echo "Production:"
@@ -136,9 +134,7 @@ perf-test:
 	@echo "Running full performance test suite..."
 	@./scripts/performance/run_benchmarks.sh
 
-load-test: load-test-wrk load-test-k6
-
-load-test-k6:
+load-test:
 	@echo "Running k6 load tests..."
 	@if ! command -v k6 &> /dev/null; then \
 		echo "Error: k6 is not installed"; \
@@ -152,20 +148,6 @@ load-test-k6:
 		exit 1; \
 	fi
 	k6 run scripts/performance/k6_test.js
-
-load-test-wrk:
-	@echo "Running wrk load tests..."
-	@if ! command -v wrk &> /dev/null; then \
-		echo "Error: wrk is not installed"; \
-		echo "Install with: brew install wrk (macOS) or apt-get install wrk (Ubuntu)"; \
-		exit 1; \
-	fi
-	@if ! curl -s http://localhost:8000/health > /dev/null 2>&1; then \
-		echo "Error: Server is not running on http://localhost:8000"; \
-		echo "Start server with: make run"; \
-		exit 1; \
-	fi
-	./scripts/performance/wrk_test.sh
 
 quick-test:
 	@if ! command -v k6 &> /dev/null; then \

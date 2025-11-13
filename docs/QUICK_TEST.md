@@ -5,6 +5,7 @@ Fast, configurable load testing with k6 for rapid iteration and testing.
 ## Prerequisites
 
 Install k6:
+
 ```bash
 # macOS
 brew install k6
@@ -260,9 +261,11 @@ brew install k6
 ### "No successful requests"
 
 Check:
+
 1. Is API_KEY correct?
 2. Is server running on port 8000?
 3. Try manual request:
+
    ```bash
    curl -X POST http://localhost:8000/v1/embed \
      -H "Authorization: Bearer your_key" \
@@ -307,17 +310,18 @@ Check:
 | Tool | Concurrency | Setup | Metrics | Use Case |
 |------|-------------|-------|---------|----------|
 | **quick-test (k6)** | ✅ Configurable | Easy | Excellent | Daily testing |
-| **wrk** | ✅ High | Medium | Good | HTTP load |
 | **k6 (full)** | ✅ Scenarios | Complex | Excellent | Comprehensive |
 
 **Use quick-test when:**
+
 - ✅ Testing after code changes
 - ✅ Quick sanity checks
 - ✅ Comparing before/after
 - ✅ Need concurrency testing
 - ✅ Want built-in thresholds
 
-**Use full k6/wrk tests when:**
+**Use full k6 tests when:**
+
 - ✅ Need complex scenarios
 - ✅ Long-duration tests
 - ✅ Production-like testing
@@ -336,6 +340,7 @@ Check:
 ## Advanced: Custom k6 Script
 
 To add thresholds, custom metrics, or modify behavior, edit:
+
 ```
 scripts/performance/quick_test.js
 ```
@@ -376,5 +381,4 @@ export default function () {
 - [PERFORMANCE.md](PERFORMANCE.md) - Full performance testing guide
 - [LOAD_TESTING.md](LOAD_TESTING.md) - Detailed load testing guide
 - Full k6 tests - `make load-test-k6`
-- wrk tests - `make load-test-wrk`
 - Criterion benchmarks - `make bench`

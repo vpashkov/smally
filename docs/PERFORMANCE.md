@@ -7,7 +7,6 @@ This document describes the performance testing setup for the Smally API and how
 The Smally API includes three types of performance tests:
 
 1. **Criterion Benchmarks** - Micro-benchmarks for individual components
-2. **wrk Load Tests** - HTTP benchmarking for throughput and latency
 3. **k6 Load Tests** - Advanced load testing with scenarios and metrics
 
 ## Prerequisites
@@ -20,7 +19,6 @@ The Smally API includes three types of performance tests:
 ### For Load Tests
 
 - Running API server
-- wrk: `brew install wrk` (macOS) or `apt-get install wrk` (Ubuntu)
 - k6: `brew install k6` (macOS) or see [k6.io](https://k6.io/docs/getting-started/installation/)
 
 ## Quick Start
@@ -112,64 +110,7 @@ Results include:
 - Performance comparison across runs
 - Statistical analysis (outliers, variance)
 
-## 2. wrk Load Tests
-
-wrk provides simple HTTP benchmarking for throughput testing.
-
-### Running wrk Tests
-
-```bash
-# Make sure server is running
-make run
-
-# In another terminal:
-./scripts/performance/wrk_test.sh
-```
-
-### Test Scenarios
-
-The script runs 5 scenarios:
-
-1. **Warm-up** (10s, 2 connections)
-   - Warms up JIT, caches
-
-2. **Light Load** (30s, 10 connections)
-   - Typical production load
-   - Expected: ~200-500 req/s, p95 <10ms
-
-3. **Medium Load** (30s, 50 connections)
-   - Peak traffic simulation
-   - Expected: ~500-1000 req/s, p95 <15ms
-
-4. **Heavy Load** (30s, 100 connections)
-   - Stress test
-   - Expected: ~800-1500 req/s, p95 <25ms
-
-5. **Spike Test** (10s, 200 connections)
-   - Maximum throughput
-   - Expected: ~1000-2000 req/s, p95 <50ms
-
-### Custom wrk Test
-
-```bash
-# Basic test
-wrk -t4 -c10 -d30s http://localhost:8000/v1/embed
-
-# With custom Lua script
-wrk -t4 -c10 -d30s -s scripts/performance/wrk_post.lua http://localhost:8000/v1/embed
-```
-
-### Expected Metrics
-
-| Metric | Target | Good | Excellent |
-|--------|--------|------|-----------|
-| Throughput | >100 req/s | >500 req/s | >1000 req/s |
-| p50 latency | <10ms | <5ms | <3ms |
-| p95 latency | <25ms | <15ms | <10ms |
-| p99 latency | <50ms | <30ms | <20ms |
-| Error rate | <1% | <0.1% | 0% |
-
-## 3. k6 Load Tests
+## 2. k6 Load Tests
 
 k6 provides advanced load testing with scenarios, metrics, and thresholds.
 
@@ -397,6 +338,5 @@ Based on ARM64 (M1/M2) and x86_64 testing:
 ## Resources
 
 - [Criterion.rs Documentation](https://bheisler.github.io/criterion.rs/book/)
-- [wrk Documentation](https://github.com/wg/wrk)
 - [k6 Documentation](https://k6.io/docs/)
 - [ONNX Runtime Performance Tuning](https://onnxruntime.ai/docs/performance/)

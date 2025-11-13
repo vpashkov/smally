@@ -1,22 +1,12 @@
 # Load Testing Quick Reference
 
-## TL;DR - Run k6 Tests Only
-
-```bash
-# Terminal 1: Start server
-make run
-
-# Terminal 2: Run k6 tests
-make load-test-k6
-```
-
 ## All Load Testing Options
 
-### 1. k6 Tests Only (Recommended)
+### 1. k6 Tests
 
 ```bash
 # Using make (checks if server is running)
-make load-test-k6
+make load-test
 
 # Direct command
 k6 run scripts/performance/k6_test.js
@@ -29,35 +19,16 @@ API_URL=http://localhost:8000/v1/embed k6 run scripts/performance/k6_test.js
 k6 run --vus 10 --duration 30s scripts/performance/k6_test.js
 ```
 
-### 2. wrk Tests Only
-
-```bash
-# Using make
-make load-test-wrk
-
-# Direct command
-./scripts/performance/wrk_test.sh
-
-# With custom settings
-API_KEY=your_key ./scripts/performance/wrk_test.sh
-```
-
-### 3. Both k6 and wrk
-
-```bash
-make load-test
-```
-
-## Prerequisites
-
 ### Install k6
 
 **macOS:**
+
 ```bash
 brew install k6
 ```
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo gpg -k
 sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
@@ -67,18 +38,6 @@ sudo apt-get install k6
 ```
 
 **Other:** See [k6.io/docs/getting-started/installation](https://k6.io/docs/getting-started/installation/)
-
-### Install wrk
-
-**macOS:**
-```bash
-brew install wrk
-```
-
-**Ubuntu/Debian:**
-```bash
-sudo apt-get install wrk
-```
 
 ## k6 Test Details
 
@@ -101,6 +60,7 @@ The k6 script includes three scenarios:
 ### Performance Thresholds
 
 Tests fail if:
+
 - 95% of requests > 50ms
 - 99% of requests > 100ms
 - Error rate > 10%
@@ -287,9 +247,7 @@ Embedding Latency (from API):
 
 | Command | Description |
 |---------|-------------|
-| `make load-test-k6` | Run k6 tests (checks server) |
-| `make load-test-wrk` | Run wrk tests (checks server) |
-| `make load-test` | Run both k6 and wrk |
+| `make load-test` | Run load tests |
 | `k6 run <script>` | Direct k6 execution |
 | `k6 run --vus N --duration Xs` | Custom load |
 | `k6 run --out json=file.json` | Save results |
@@ -299,4 +257,3 @@ Embedding Latency (from API):
 
 - [PERFORMANCE.md](PERFORMANCE.md) - Full performance testing guide
 - [k6 Documentation](https://k6.io/docs/) - Official k6 docs
-- [wrk Documentation](https://github.com/wg/wrk) - Official wrk docs

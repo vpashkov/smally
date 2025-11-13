@@ -43,11 +43,13 @@ src/
 ### 4. Caching Strategy
 
 **L1 Cache (In-Memory):**
+
 - Custom LRU implementation with HashMap and doubly-linked list
 - Thread-safe with Arc<RwLock<T>>
 - O(1) get/set operations
 
 **L2 Cache (Redis):**
+
 - Async writes using Tokio tasks
 - Binary serialization (Vec<f32> -> bytes)
 - 24-hour TTL
@@ -89,6 +91,7 @@ src/
 ## Dependencies
 
 Main external dependencies:
+
 - `tokio-postgres` - PostgreSQL driver
 - `redis` - Redis client
 - `ort` - ONNX Runtime bindings
@@ -114,6 +117,7 @@ cargo build --release
 ## Configuration
 
 Environment variables are read via the `config` module:
+
 - Uses `std::env::var()` with defaults
 - OnceCell pattern ensures one config instance
 - Type-safe accessors for all settings
@@ -124,7 +128,7 @@ Environment variables are read via the `config` module:
 1. Unit tests for core logic (cache, tokenizer, security)
 2. Integration tests for database operations
 3. Benchmark tests with criterion for performance validation
-4. Load testing with external tools (wrk, k6)
+4. Load testing with external tools (k6)
 
 ## Future Improvements
 
@@ -138,6 +142,7 @@ Environment variables are read via the `config` module:
 ## Monitoring
 
 Prometheus metrics exposed at `/metrics`:
+
 - Request latency histograms
 - Cache hit/miss counters
 - Error counters by type
@@ -147,6 +152,7 @@ Prometheus metrics exposed at `/metrics`:
 ## Deployment
 
 Recommended deployment:
+
 ```bash
 # Build static binary for production
 cargo build --release

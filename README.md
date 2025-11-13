@@ -15,6 +15,7 @@ Ultra-fast semantic embeddings for real-time search and autocomplete - implement
 ## Quick Start
 
 **TL;DR** - One-command setup:
+
 ```bash
 make setup  # Installs deps, starts services, downloads model, initializes DB
 make run    # Run the server
@@ -31,16 +32,19 @@ make run    # Run the server
 ### Installation
 
 1. **Clone the repository**
+
 ```bash
 cd ~/projects/embed/rs2
 ```
 
 2. **Install ONNX Runtime**
+
 ```bash
 brew install onnxruntime
 ```
 
 3. **Install Rust dependencies**
+
 ```bash
 make deps
 # Or manually:
@@ -48,12 +52,14 @@ cargo fetch
 ```
 
 4. **Set up environment**
+
 ```bash
 cp .env.example .env
 # Edit .env with your configuration
 ```
 
 5. **Start services (PostgreSQL and Redis)**
+
 ```bash
 make services-up
 # Or manually:
@@ -61,6 +67,7 @@ docker-compose up -d
 ```
 
 6. **Download and convert model to ONNX**
+
 ```bash
 make model
 # This uses the Python script from the py/ directory
@@ -68,6 +75,7 @@ make model
 ```
 
 7. **Initialize database**
+
 ```bash
 make init-db
 # Or manually:
@@ -76,6 +84,7 @@ make init-db
 ```
 
 8. **Run the server**
+
 ```bash
 make run
 # Or manually:
@@ -193,6 +202,7 @@ Cache hit latency: <0.05ms (L1), 0.3-0.8ms (L2)
 Access metrics at `http://localhost:8000/metrics`
 
 Key metrics:
+
 - `smally_request_latency_seconds` - Request latency histogram
 - `smally_inference_latency_seconds` - Model inference time
 - `smally_cache_hits_total` - Cache hit counter
@@ -253,15 +263,14 @@ make quick-test NUM_USERS=10             # 10 concurrent users
 make quick-test NUM_REQUESTS=500 NUM_USERS=10  # Combined
 
 # Full load tests (requires running server)
-make load-test-k6       # k6 load tests only
-make load-test-wrk      # wrk load tests only
-make load-test          # Both k6 and wrk
+make load-test       # k6 load tests only
 
 # Full suite (benchmarks + load tests)
 make perf-test
 ```
 
 **Quick start for load testing:**
+
 ```bash
 # Terminal 1: Start server
 make run
@@ -277,8 +286,8 @@ make quick-test NUM_REQUESTS=500 NUM_USERS=10
 ```
 
 See [PERFORMANCE.md](PERFORMANCE.md) for detailed documentation on:
+
 - Criterion micro-benchmarks
-- wrk HTTP load testing
 - k6 advanced load testing
 - Performance optimization tips
 
@@ -292,6 +301,7 @@ make build
 ## Dependencies
 
 Main Rust dependencies:
+
 - `tokio-postgres` - PostgreSQL driver
 - `redis` - Redis client
 - `ort` - ONNX Runtime bindings
