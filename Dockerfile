@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.75-bookworm AS builder
+FROM rust:1.91-bookworm AS builder
 
 # Install build dependencies including ONNX Runtime
 RUN apt-get update && \
