@@ -29,7 +29,7 @@
 
         - name: Set git facts
           set_fact:
-            git_vars: "{{ git_info.stdout | regex_findall('([A-Z_]+)=(.+)') | items2dict }}"
+            git_vars: "{{ dict(git_info.stdout | regex_findall('([A-Z_]+)=(.+)')) }}"
 
         - name: Build Docker image with binaries (using BuildKit for cache)
           command: >
