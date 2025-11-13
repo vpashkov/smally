@@ -24,8 +24,8 @@ ENV ORT_DYLIB_PATH=/usr/local/lib
 WORKDIR /build
 
 # Copy Cargo files and download dependencies first (better caching)
-COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && rm -rf src
+COPY Cargo.toml Cargo.lock build.rs ./
+RUN mkdir src && echo "fn main() {}" > src/main.rs && echo "fn main() {}" > build.rs && cargo build --release && rm -rf src build.rs
 
 # Copy source code
 COPY . .
@@ -55,8 +55,9 @@ RUN wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.16.3/o
 
 WORKDIR /app
 
-# Copy the built binary from builder stage
+# Copy the built binaries from builder stage
 COPY --from=builder /build/target/release/embed_rs /app/embed_rs
+COPY --from=builder /build/target/release/create_api_key /app/create_api_key
 
 # Copy scripts
 COPY scripts /app/scripts
@@ -64,7 +65,9 @@ COPY scripts /app/scripts
 # Create directories for models and logs
 RUN mkdir -p /app/models /app/logs && \
     chmod +x /app/embed_rs && \
-    chmod +x /app/scripts/*.sh 2>/dev/null || true
+    chmod +x /app/create_api_key && \
+    chmod +x /app/scripts/*.sh 2>/dev/null || true && \
+    chmod +x /app/scripts/deployment/*.sh 2>/dev/null || true
 
 # Expose port
 EXPOSE 8000

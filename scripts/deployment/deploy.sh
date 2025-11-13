@@ -93,7 +93,7 @@ if [ $RETRIES -eq 0 ]; then
 fi
 
 log_info "Initializing database..."
-docker-compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec -T app python scripts/init_db.py admin@example.com scale || true
+docker-compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec -T app /app/scripts/init_db.sh admin@example.com scale || true
 
 log_info "Deployment complete!"
 log_info ""
@@ -103,7 +103,7 @@ log_info "Metrics: http://localhost:9090"
 log_info "Grafana: http://localhost:3000"
 log_info ""
 log_info "Create additional API keys:"
-log_info "  docker-compose -f docker-compose.prod.yml exec app python scripts/init_db.py user@example.com <tier>"
+log_info "  docker-compose -f docker-compose.prod.yml exec app /app/scripts/deployment/create-api-key.sh user@example.com <tier>"
 log_info "  Tiers: free, pro, scale"
 log_info "============================================"
 
