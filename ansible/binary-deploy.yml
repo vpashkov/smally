@@ -15,31 +15,56 @@
       delegate_to: localhost
       become: no
       block:
-        - name: Capture git information
-          shell: |
-            echo "GIT_HASH=$(git rev-parse --short HEAD)"
-            echo "GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)"
-            echo "GIT_DATE=$(git log -1 --format=%ci)"
-            echo "GIT_DIRTY=$(git status --porcelain | wc -l | awk '{if ($1 > 0) print \"true\"; else print \"false\"}')"
-            echo "BUILD_TIMESTAMP=$(date -u +\"%Y-%m-%dT%H:%M:%S%z\")"
+        - name: Get git hash
+          command: git rev-parse --short HEAD
           args:
             chdir: "{{ playbook_dir }}/.."
-          register: git_info
+          register: git_hash
+          changed_when: false
+
+        - name: Get git branch
+          command: git rev-parse --abbrev-ref HEAD
+          args:
+            chdir: "{{ playbook_dir }}/.."
+          register: git_branch
+          changed_when: false
+
+        - name: Get git date
+          command: git log -1 --format=%ci
+          args:
+            chdir: "{{ playbook_dir }}/.."
+          register: git_date
+          changed_when: false
+
+        - name: Check git dirty status
+          shell: git status --porcelain | wc -l | awk '{if ($1 > 0) print "true"; else print "false"}'
+          args:
+            chdir: "{{ playbook_dir }}/.."
+          register: git_dirty
+          changed_when: false
+
+        - name: Get build timestamp
+          command: date -u +"%Y-%m-%dT%H:%M:%S%z"
+          register: build_timestamp
           changed_when: false
 
         - name: Set git facts
           set_fact:
-            git_vars: "{{ dict(git_info.stdout | regex_findall('([A-Z_]+)=(.+)')) }}"
+            git_hash: "{{ git_hash.stdout | trim }}"
+            git_branch: "{{ git_branch.stdout | trim }}"
+            git_date: "{{ git_date.stdout | trim }}"
+            git_dirty: "{{ git_dirty.stdout | trim }}"
+            build_timestamp: "{{ build_timestamp.stdout | trim }}"
 
         - name: Build Docker image with binaries (using BuildKit for cache)
           command: >
             docker build
             --target builder
-            --build-arg GIT_HASH="{{ git_vars.GIT_HASH }}"
-            --build-arg GIT_BRANCH="{{ git_vars.GIT_BRANCH }}"
-            --build-arg GIT_DATE="{{ git_vars.GIT_DATE }}"
-            --build-arg GIT_DIRTY="{{ git_vars.GIT_DIRTY }}"
-            --build-arg BUILD_TIMESTAMP="{{ git_vars.BUILD_TIMESTAMP }}"
+            --build-arg GIT_HASH="{{ git_hash }}"
+            --build-arg GIT_BRANCH="{{ git_branch }}"
+            --build-arg GIT_DATE="{{ git_date }}"
+            --build-arg GIT_DIRTY="{{ git_dirty }}"
+            --build-arg BUILD_TIMESTAMP="{{ build_timestamp }}"
             --build-arg RUST_VERSION="1.91.0"
             -t smally-builder:latest
             -f Dockerfile
