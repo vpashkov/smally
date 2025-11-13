@@ -1,6 +1,14 @@
 # Build stage
 FROM rust:1.91-bookworm AS builder
 
+# Build arguments for git info (passed from host)
+ARG GIT_HASH=unknown
+ARG GIT_BRANCH=unknown
+ARG GIT_DATE=unknown
+ARG GIT_DIRTY=false
+ARG BUILD_TIMESTAMP=unknown
+ARG RUST_VERSION=unknown
+
 # Install build dependencies including ONNX Runtime
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -40,6 +48,16 @@ RUN mkdir -p src/bin benches && \
 COPY . .
 
 # Build the application
+# SQLX_OFFLINE=true to use cached queries
+# Pass build args as env vars for build.rs to use
+ENV SQLX_OFFLINE=true \
+    GIT_HASH=${GIT_HASH} \
+    GIT_BRANCH=${GIT_BRANCH} \
+    GIT_DATE=${GIT_DATE} \
+    GIT_DIRTY=${GIT_DIRTY} \
+    BUILD_TIMESTAMP=${BUILD_TIMESTAMP} \
+    RUST_VERSION=${RUST_VERSION}
+
 RUN cargo build --release
 
 # Runtime stage
