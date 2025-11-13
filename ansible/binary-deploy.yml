@@ -117,18 +117,21 @@
         dest: "{{ smally_app_dir }}/scripts/"
         delete: no
         rsync_opts:
-          - "--chmod=D755,F755"
           - "--exclude=*.sh~"
 
-    - name: Ensure scripts are executable
-      file:
-        path: "{{ smally_app_dir }}/scripts"
-        state: directory
+    - name: Find all shell scripts
+      find:
+        paths: "{{ smally_app_dir }}/scripts"
+        patterns: "*.sh"
         recurse: yes
-        mode: 'u+x,g+x,o+x'
-      when: item is match(".*\.sh$")
-      with_fileglob:
-        - "{{ smally_app_dir }}/scripts/**/*.sh"
+      register: shell_scripts
+
+    - name: Make scripts executable
+      file:
+        path: "{{ item.path }}"
+        mode: '0755'
+      loop: "{{ shell_scripts.files }}"
+      when: shell_scripts.files | length > 0
 
     - name: Start smally service
       systemd:
