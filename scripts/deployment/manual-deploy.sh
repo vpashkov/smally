@@ -38,7 +38,7 @@ APP_DIR="${2:-/home/smally/smally-api}"
 cd "$PROJECT_ROOT"
 
 log_info "Building binaries locally..."
-./scripts/deployment/build-and-deploy.sh
+./scripts/deployment/build.sh
 
 if [ ! -f "dist/api" ] || [ ! -f "dist/create_api_key" ]; then
   log_error "Build failed - binaries not found in dist/"

@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-# FastEmbed API - Local Build and Remote Deploy Script
-# Builds binaries locally in Docker, then deploys to remote server
+# Smally API - Local Build Script
+# Cross-compiles ARM64 Linux binaries locally in Docker
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
