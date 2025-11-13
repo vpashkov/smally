@@ -59,6 +59,7 @@
         - name: Build Docker image with binaries
           command: >
             docker build
+            --platform linux/arm64
             --target builder
             --build-arg GIT_HASH="{{ git_hash }}"
             --build-arg GIT_BRANCH="{{ git_branch }}"

@@ -1,5 +1,6 @@
 # Build stage
-FROM rust:1.91-bookworm AS builder
+# Explicitly target linux/arm64 (AWS Graviton, Apple Silicon)
+FROM --platform=linux/arm64 rust:1.91-bookworm AS builder
 
 # Build arguments for git info (passed from host)
 ARG GIT_HASH=unknown
@@ -69,7 +70,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cp /build/target/release/create_api_key /build/create_api_key
 
 # Runtime stage
-FROM ubuntu:22.04
+FROM --platform=linux/arm64 ubuntu:22.04
 
 # Install runtime dependencies
 RUN apt-get update && \

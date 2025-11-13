@@ -43,6 +43,7 @@ log_info "Build Timestamp: $BUILD_TIMESTAMP"
 # Build in Docker (ARM64 Linux) with BuildKit for cache mounts
 log_info "Building binaries in Docker with BuildKit cache..."
 DOCKER_BUILDKIT=1 docker build \
+  --platform linux/arm64 \
   --target builder \
   --build-arg GIT_HASH="$GIT_HASH" \
   --build-arg GIT_BRANCH="$GIT_BRANCH" \
