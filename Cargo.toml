@@ -71,6 +71,10 @@ dashmap = "5.5"
 # Fast hashing
 seahash = "4.1"
 
+[build-dependencies]
+chrono = "0.4"
+rustc_version = "0.4"
+
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 

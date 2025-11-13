@@ -39,15 +39,42 @@ pub struct HealthResponse {
     pub status: String,
     pub version: String,
     pub model: String,
+    pub build: BuildInfo,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BuildInfo {
+    pub git_hash: String,
+    pub git_branch: String,
+    pub git_date: String,
+    pub git_dirty: bool,
+    pub build_timestamp: String,
+    pub rust_version: String,
+    pub profile: String,
 }
 
 pub async fn health_handler() -> Json<HealthResponse> {
     let settings = config::get_settings();
 
+    let profile = if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "release"
+    };
+
     Json(HealthResponse {
         status: "healthy".to_string(),
         version: settings.version.clone(),
         model: settings.model_name.clone(),
+        build: BuildInfo {
+            git_hash: env!("GIT_HASH").to_string(),
+            git_branch: env!("GIT_BRANCH").to_string(),
+            git_date: env!("GIT_DATE").to_string(),
+            git_dirty: env!("GIT_DIRTY").parse().unwrap_or(false),
+            build_timestamp: env!("BUILD_TIMESTAMP").to_string(),
+            rust_version: env!("RUST_VERSION").to_string(),
+            profile: profile.to_string(),
+        },
     })
 }
 
