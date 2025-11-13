@@ -96,7 +96,7 @@ fi
 log_info "Pulling latest images..."
 docker-compose -f docker-compose.prod.yml --env-file "$ENV_FILE" pull
 
-log_info "Building application image..."
+log_info "Building application image with BuildKit cache..."
 # Capture git info to pass as build args
 GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
@@ -105,7 +105,7 @@ GIT_DIRTY=$(git status --porcelain 2>/dev/null | wc -l | awk '{if ($1 > 0) print
 BUILD_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%S%z")
 RUST_VERSION=$(rustc --version 2>/dev/null | cut -d' ' -f2 || echo "unknown")
 
-docker-compose -f docker-compose.prod.yml --env-file "$ENV_FILE" build --no-cache \
+DOCKER_BUILDKIT=1 docker-compose -f docker-compose.prod.yml --env-file "$ENV_FILE" build \
   --build-arg GIT_HASH="$GIT_HASH" \
   --build-arg GIT_BRANCH="$GIT_BRANCH" \
   --build-arg GIT_DATE="$GIT_DATE" \

@@ -40,9 +40,9 @@ log_info "Git Hash: $GIT_HASH"
 log_info "Git Branch: $GIT_BRANCH"
 log_info "Build Timestamp: $BUILD_TIMESTAMP"
 
-# Build in Docker (ARM64 Linux)
-log_info "Building binaries in Docker..."
-docker build \
+# Build in Docker (ARM64 Linux) with BuildKit for cache mounts
+log_info "Building binaries in Docker with BuildKit cache..."
+DOCKER_BUILDKIT=1 docker build \
   --target builder \
   --build-arg GIT_HASH="$GIT_HASH" \
   --build-arg GIT_BRANCH="$GIT_BRANCH" \

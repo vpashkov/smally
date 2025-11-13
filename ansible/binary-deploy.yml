@@ -31,7 +31,7 @@
           set_fact:
             git_vars: "{{ git_info.stdout | regex_findall('([A-Z_]+)=(.+)') | items2dict }}"
 
-        - name: Build Docker image with binaries
+        - name: Build Docker image with binaries (using BuildKit for cache)
           command: >
             docker build
             --target builder
@@ -46,6 +46,8 @@
             .
           args:
             chdir: "{{ playbook_dir }}/.."
+          environment:
+            DOCKER_BUILDKIT: "1"
 
         - name: Create dist directory
           file:

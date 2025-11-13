@@ -33,7 +33,9 @@ WORKDIR /build
 
 # Copy Cargo files and download dependencies first (better caching)
 COPY Cargo.toml Cargo.lock build.rs ./
-RUN mkdir -p src/bin benches && \
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    mkdir -p src/bin benches && \
     echo "fn main() {}" > src/main.rs && \
     echo "pub fn dummy() {}" > src/lib.rs && \
     echo "fn main() {}" > src/bin/create_api_key.rs && \
@@ -58,7 +60,13 @@ ENV SQLX_OFFLINE=true \
     BUILD_TIMESTAMP=${BUILD_TIMESTAMP} \
     RUST_VERSION=${RUST_VERSION}
 
-RUN cargo build --release
+# Use cache mounts for cargo registry, git cache, and incremental builds
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/build/target \
+    cargo build --release && \
+    cp /build/target/release/api /build/api && \
+    cp /build/target/release/create_api_key /build/create_api_key
 
 # Runtime stage
 FROM ubuntu:22.04
@@ -83,8 +91,8 @@ RUN wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.16.3/o
 WORKDIR /app
 
 # Copy the built binaries from builder stage
-COPY --from=builder /build/target/release/api /app/api
-COPY --from=builder /build/target/release/create_api_key /app/create_api_key
+COPY --from=builder /build/api /app/api
+COPY --from=builder /build/create_api_key /app/create_api_key
 
 # Copy scripts
 COPY scripts /app/scripts
