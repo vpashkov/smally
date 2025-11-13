@@ -3,7 +3,7 @@
 
 - name: Set hostname
   hostname:
-    name: "fastembed-{{ fastembed_environment | default('prod') }}"
+    name: "smally-{{ smally_environment | default('prod') }}"
 
 - name: Update apt cache
   apt:
@@ -31,37 +31,37 @@
     state: present
     update_cache: yes
 
-- name: Create fastembed user
+- name: Create smally user
   user:
-    name: "{{ fastembed_user }}"
-    comment: "FastEmbed Application User"
+    name: "{{ smally_user }}"
+    comment: "Smally Application User"
     shell: /bin/bash
     create_home: yes
     groups: sudo
     append: yes
   tags: ['always']
 
-- name: Set up SSH key for fastembed user
+- name: Set up SSH key for smally user
   authorized_key:
-    user: "{{ fastembed_user }}"
+    user: "{{ smally_user }}"
     key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
     state: present
   tags: ['always']
 
-- name: Create .ansible directory for fastembed user
+- name: Create .ansible directory for smally user
   file:
-    path: "/home/{{ fastembed_user }}/.ansible/tmp"
+    path: "/home/{{ smally_user }}/.ansible/tmp"
     state: directory
-    owner: "{{ fastembed_user }}"
-    group: "{{ fastembed_user }}"
+    owner: "{{ smally_user }}"
+    group: "{{ smally_user }}"
     mode: '0700'
     recurse: yes
   tags: ['always']
 
-- name: Configure sudo for fastembed user
+- name: Configure sudo for smally user
   copy:
-    content: "{{ fastembed_user }} ALL=(ALL) NOPASSWD:ALL"
-    dest: "/etc/sudoers.d/{{ fastembed_user }}"
+    content: "{{ smally_user }} ALL=(ALL) NOPASSWD:ALL"
+    dest: "/etc/sudoers.d/{{ smally_user }}"
     mode: '0440'
     validate: 'visudo -cf %s'
   tags: ['always']
@@ -95,7 +95,7 @@
     value: "{{ item.value }}"
     state: present
     reload: yes
-    sysctl_file: /etc/sysctl.d/99-fastembed.conf
+    sysctl_file: /etc/sysctl.d/99-smally.conf
   loop:
     - { name: 'net.core.somaxconn', value: '65535' }
     - { name: 'net.ipv4.tcp_max_syn_backlog', value: '8192' }

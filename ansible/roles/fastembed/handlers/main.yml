@@ -1,9 +1,9 @@
 ---
-# FastEmbed role handlers
+# Smally role handlers
 
-- name: restart fastembed
+- name: restart smally
   systemd:
-    name: fastembed
+    name: smally
     state: restarted
     daemon_reload: yes
 

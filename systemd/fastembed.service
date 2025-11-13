@@ -1,14 +1,14 @@
 [Unit]
-Description=FastEmbed API Service
+Description=Smally API Service
 After=docker.service
 Requires=docker.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=/home/fastembed/fastembed-api
-User=fastembed
-Group=fastembed
+WorkingDirectory=/home/smally/smally-api
+User=smally
+Group=smally
 
 # Start services
 ExecStart=/usr/local/bin/docker-compose -f docker-compose.prod.yml up -d

@@ -1,6 +1,6 @@
 # Secret Management Guide
 
-This guide explains how to securely manage secrets for the FastEmbed API deployment using Ansible Vault.
+This guide explains how to securely manage secrets for the Smally API deployment using Ansible Vault.
 
 ## Overview
 
@@ -88,7 +88,7 @@ openssl rand -base64 32
 openssl rand -base64 32
 
 # GitHub deploy key (for private repos)
-ssh-keygen -t ed25519 -C "deploy@fastembed-api" -f ~/.ssh/github_deploy_key
+ssh-keygen -t ed25519 -C "deploy@smally-api" -f ~/.ssh/github_deploy_key
 # Add the public key (~/.ssh/github_deploy_key.pub) to GitHub: Settings > Deploy keys
 # Use the private key (~/.ssh/github_deploy_key) in vault.yml
 ```

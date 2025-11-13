@@ -2,7 +2,7 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    cluster: 'fastembed-prod'
+    cluster: 'smally-prod'
     environment: 'production'
 
 # Alerting configuration (optional - requires Alertmanager)
@@ -12,8 +12,8 @@ global:
 #         - targets: ['alertmanager:9093']
 
 scrape_configs:
-  # FastEmbed API metrics
-  - job_name: 'fastembed-api'
+  # Smally API metrics
+  - job_name: 'smally-api'
     static_configs:
       - targets: ['app:8000']
     metrics_path: '/metrics'

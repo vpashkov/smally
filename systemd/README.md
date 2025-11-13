@@ -1,15 +1,15 @@
 # Systemd Service Files
 
-These systemd service files allow you to manage FastEmbed API as a system service.
+These systemd service files allow you to manage Smally API as a system service.
 
 ## Installation
 
 ### 1. Copy Service Files
 
 ```bash
-sudo cp systemd/fastembed.service /etc/systemd/system/
-sudo cp systemd/fastembed-backup.service /etc/systemd/system/
-sudo cp systemd/fastembed-backup.timer /etc/systemd/system/
+sudo cp systemd/smally.service /etc/systemd/system/
+sudo cp systemd/smally-backup.service /etc/systemd/system/
+sudo cp systemd/smally-backup.timer /etc/systemd/system/
 ```
 
 ### 2. Reload Systemd
@@ -21,21 +21,21 @@ sudo systemctl daemon-reload
 ### 3. Enable Services
 
 ```bash
-# Enable FastEmbed API to start on boot
-sudo systemctl enable fastembed.service
+# Enable Smally API to start on boot
+sudo systemctl enable smally.service
 
 # Enable automatic daily backups
-sudo systemctl enable fastembed-backup.timer
+sudo systemctl enable smally-backup.timer
 ```
 
 ### 4. Start Services
 
 ```bash
-# Start FastEmbed API
-sudo systemctl start fastembed.service
+# Start Smally API
+sudo systemctl start smally.service
 
 # Start backup timer
-sudo systemctl start fastembed-backup.timer
+sudo systemctl start smally-backup.timer
 ```
 
 ## Usage
@@ -44,10 +44,10 @@ sudo systemctl start fastembed-backup.timer
 
 ```bash
 # Check API service status
-sudo systemctl status fastembed.service
+sudo systemctl status smally.service
 
 # Check backup timer status
-sudo systemctl status fastembed-backup.timer
+sudo systemctl status smally-backup.timer
 
 # List all timers
 sudo systemctl list-timers
@@ -57,54 +57,54 @@ sudo systemctl list-timers
 
 ```bash
 # Start
-sudo systemctl start fastembed.service
+sudo systemctl start smally.service
 
 # Stop
-sudo systemctl stop fastembed.service
+sudo systemctl stop smally.service
 
 # Restart
-sudo systemctl restart fastembed.service
+sudo systemctl restart smally.service
 
 # Reload configuration
-sudo systemctl reload fastembed.service
+sudo systemctl reload smally.service
 ```
 
 ### View Logs
 
 ```bash
 # View API logs
-sudo journalctl -u fastembed.service -f
+sudo journalctl -u smally.service -f
 
 # View backup logs
-sudo journalctl -u fastembed-backup.service
+sudo journalctl -u smally-backup.service
 
 # View last 100 lines
-sudo journalctl -u fastembed.service -n 100
+sudo journalctl -u smally.service -n 100
 ```
 
 ### Manual Backup
 
 ```bash
 # Trigger backup manually
-sudo systemctl start fastembed-backup.service
+sudo systemctl start smally-backup.service
 
 # Check backup status
-sudo systemctl status fastembed-backup.service
+sudo systemctl status smally-backup.service
 ```
 
 ## Auto-start on Boot
 
-Once enabled, FastEmbed will automatically start when the server boots.
+Once enabled, Smally will automatically start when the server boots.
 
 ```bash
 # Enable
-sudo systemctl enable fastembed.service
+sudo systemctl enable smally.service
 
 # Disable
-sudo systemctl disable fastembed.service
+sudo systemctl disable smally.service
 
 # Check if enabled
-sudo systemctl is-enabled fastembed.service
+sudo systemctl is-enabled smally.service
 ```
 
 ## Troubleshooting
@@ -113,34 +113,34 @@ sudo systemctl is-enabled fastembed.service
 
 ```bash
 # Check detailed status
-sudo systemctl status fastembed.service -l
+sudo systemctl status smally.service -l
 
 # View recent logs
-sudo journalctl -u fastembed.service -n 50
+sudo journalctl -u smally.service -n 50
 
 # Verify Docker is running
 sudo systemctl status docker
 
 # Check file permissions
-ls -la /home/fastembed/fastembed-api/
+ls -la /home/smally/smally-api/
 ```
 
 ### Backup Timer Not Running
 
 ```bash
 # Check timer status
-sudo systemctl status fastembed-backup.timer
+sudo systemctl status smally-backup.timer
 
 # List all timers
 systemctl list-timers --all
 
 # Manually trigger backup
-sudo systemctl start fastembed-backup.service
+sudo systemctl start smally-backup.service
 ```
 
 ## Notes
 
-- Service runs as `fastembed` user
+- Service runs as `smally` user
 - Backup runs daily at 2 AM
 - Logs are stored in systemd journal
 - Service automatically restarts on failure

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# FastEmbed API Quick Deploy
+# Smally API Quick Deploy
 # For code-only changes - skips full rebuild and infrastructure setup
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

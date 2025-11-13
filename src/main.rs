@@ -34,7 +34,7 @@ async fn main() -> anyhow::Result<()> {
         .with_max_level(Level::INFO)
         .init();
 
-    info!("Starting FastEmbed API...");
+    info!("Starting Smally API...");
 
     let settings = config::get_settings();
 
@@ -90,7 +90,7 @@ async fn main() -> anyhow::Result<()> {
     // Create server address
     let addr: SocketAddr = settings.address().parse()?;
 
-    info!("FastEmbed API started on http://{}", addr);
+    info!("Smally API started on http://{}", addr);
 
     // Start server with graceful shutdown
     let listener = TcpListener::bind(&addr).await?;
@@ -131,10 +131,10 @@ async fn shutdown_signal() {
 
     tokio::select! {
         _ = ctrl_c => {
-            info!("Shutting down FastEmbed API...");
+            info!("Shutting down Smally API...");
         },
         _ = terminate => {
-            info!("Shutting down FastEmbed API...");
+            info!("Shutting down Smally API...");
         },
     }
 }

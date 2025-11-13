@@ -92,7 +92,7 @@ variable "enable_floating_ip" {
 }
 
 variable "domain_name" {
-  description = "Domain name for the API (e.g., api.fastembed.io)"
+  description = "Domain name for the API (e.g., api.smally.io)"
   type        = string
   default     = ""
 }

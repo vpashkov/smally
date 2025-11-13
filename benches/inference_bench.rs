@@ -20,7 +20,7 @@ fn bench_embedding_generation(c: &mut Criterion) {
     }
 
     // Try to create model - requires environment setup
-    let mut model = match embed_rs::inference::EmbeddingModel::new() {
+    let mut model = match api::inference::EmbeddingModel::new() {
         Ok(m) => m,
         Err(e) => {
             eprintln!("Failed to load model: {}.", e);
@@ -61,7 +61,7 @@ fn bench_normalize_impact(c: &mut Criterion) {
         return;
     }
 
-    let mut model = match embed_rs::inference::EmbeddingModel::new() {
+    let mut model = match api::inference::EmbeddingModel::new() {
         Ok(m) => m,
         Err(e) => {
             eprintln!("Failed to load model: {}. Skipping benchmark.", e);

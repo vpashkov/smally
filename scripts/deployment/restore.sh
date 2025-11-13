@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# FastEmbed Database Restore Script
+# Smally Database Restore Script
 # Restores PostgreSQL database from backup
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,7 +30,7 @@ log_error() {
 if [ $# -eq 0 ]; then
     log_error "Usage: $0 <backup_file>"
     log_info "Available backups:"
-    ls -lh "$BACKUP_DIR"/fastembed_backup_*.sql.gz 2>/dev/null || echo "  No backups found"
+    ls -lh "$BACKUP_DIR"/smally_backup_*.sql.gz 2>/dev/null || echo "  No backups found"
     exit 1
 fi
 

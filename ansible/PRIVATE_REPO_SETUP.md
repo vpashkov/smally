@@ -8,7 +8,7 @@ On your local machine:
 
 ```bash
 # Generate SSH key for GitHub deploy access
-ssh-keygen -t ed25519 -C "deploy@fastembed-api" -f ~/.ssh/github_deploy_key
+ssh-keygen -t ed25519 -C "deploy@smally-api" -f ~/.ssh/github_deploy_key
 
 # Display the public key
 cat ~/.ssh/github_deploy_key.pub
@@ -16,7 +16,7 @@ cat ~/.ssh/github_deploy_key.pub
 
 ## Step 2: Add Deploy Key to GitHub
 
-1. Go to your GitHub repository: `https://github.com/vpashkov/fastembed-api`
+1. Go to your GitHub repository: `https://github.com/vpashkov/smally-api`
 2. Navigate to **Settings** → **Deploy keys**
 3. Click **Add deploy key**
 4. Title: `Ansible Deploy Key`
@@ -63,8 +63,8 @@ cat ~/.ssh/github_deploy_key
 The inventory has already been updated to use SSH URL:
 
 ```yaml
-fastembed_git_repo: git@github.com:vpashkov/fastembed-api.git
-fastembed_git_deploy_key: "{{ vault_github_deploy_key }}"
+smally_git_repo: git@github.com:vpashkov/smally-api.git
+smally_git_deploy_key: "{{ vault_github_deploy_key }}"
 ```
 
 ## Step 5: Deploy
@@ -76,8 +76,8 @@ ansible-playbook -i inventory/hosts.yml playbook.yml --ask-vault-pass
 ```
 
 The playbook will:
-1. Create `.ssh` directory for `fastembed` user
-2. Copy the deploy key to `/home/fastembed/.ssh/github_deploy_key`
+1. Create `.ssh` directory for `smally` user
+2. Copy the deploy key to `/home/smally/.ssh/github_deploy_key`
 3. Configure SSH to use the deploy key for `github.com`
 4. Clone the private repository using SSH
 
@@ -88,17 +88,17 @@ After deployment, SSH to the server and verify:
 ```bash
 ssh root@your-server-ip
 
-# Switch to fastembed user
-su - fastembed
+# Switch to smally user
+su - smally
 
 # Test GitHub access
 ssh -T git@github.com
-# Should output: "Hi vpashkov/fastembed-api! You've successfully authenticated..."
+# Should output: "Hi vpashkov/smally-api! You've successfully authenticated..."
 
 # Check repository
-cd /home/fastembed/fastembed-api
+cd /home/smally/smally-api
 git remote -v
-# Should show: git@github.com:vpashkov/fastembed-api.git
+# Should show: git@github.com:vpashkov/smally-api.git
 ```
 
 ## Security Notes
@@ -106,7 +106,7 @@ git remote -v
 1. **Private key is encrypted** in Ansible Vault - never commit unencrypted
 2. **Deploy key is read-only** - cannot push to repository (best practice)
 3. **SSH config disables host key checking** - only for automated deployments
-4. **Key is user-specific** - only `fastembed` user can access it
+4. **Key is user-specific** - only `smally` user can access it
 5. **Strict file permissions** - SSH key is mode 0600, .ssh is mode 0700
 
 ## Troubleshooting
@@ -118,15 +118,15 @@ git remote -v
 ssh root@server-ip
 
 # Check deploy key exists
-ls -la /home/fastembed/.ssh/
+ls -la /home/smally/.ssh/
 # Should see: github_deploy_key (mode 600)
 
 # Check SSH config
-cat /home/fastembed/.ssh/config
+cat /home/smally/.ssh/config
 # Should have GitHub configuration
 
-# Test as fastembed user
-su - fastembed
+# Test as smally user
+su - smally
 ssh -T git@github.com
 ```
 
@@ -140,7 +140,7 @@ ssh -T git@github.com
 
 ```bash
 # SSH to server and accept GitHub's host key
-su - fastembed
+su - smally
 ssh-keyscan github.com >> ~/.ssh/known_hosts
 ```
 
@@ -153,7 +153,7 @@ If you can't use deploy keys, use a Personal Access Token:
 vault_github_token: ghp_xxxxxxxxxxxxxxxxxxxx
 
 # In inventory
-fastembed_git_repo: https://{{ vault_github_token }}@github.com/vpashkov/fastembed-api.git
+smally_git_repo: https://{{ vault_github_token }}@github.com/vpashkov/smally-api.git
 ```
 
 **Warning**: This is less secure as the token has broader permissions.

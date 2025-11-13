@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# FastEmbed API - Generate Production Environment Variables
+# Smally API - Generate Production Environment Variables
 # This script generates secure passwords for .env
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -44,7 +44,7 @@ SECRET_KEY=$(openssl rand -hex 32)
 
 echo ""
 echo -e "${BLUE}============================================${NC}"
-echo -e "${BLUE}FastEmbed API - Production Configuration${NC}"
+echo -e "${BLUE}Smally API - Production Configuration${NC}"
 echo -e "${BLUE}============================================${NC}"
 echo ""
 
@@ -85,9 +85,9 @@ echo -e "${GREEN}Generated Credentials (SAVE THESE!)${NC}"
 echo -e "${BLUE}============================================${NC}"
 echo ""
 echo -e "${YELLOW}PostgreSQL:${NC}"
-echo "  User: fastembed"
+echo "  User: smally"
 echo "  Password: $POSTGRES_PASSWORD"
-echo "  Database: fastembed"
+echo "  Database: smally"
 echo ""
 echo -e "${YELLOW}Grafana:${NC}"
 echo "  User: admin"

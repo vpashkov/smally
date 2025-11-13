@@ -1,10 +1,10 @@
 # Performance Testing Guide
 
-This document describes the performance testing setup for the FastEmbed API and how to run various benchmarks.
+This document describes the performance testing setup for the Smally API and how to run various benchmarks.
 
 ## Overview
 
-The FastEmbed API includes three types of performance tests:
+The Smally API includes three types of performance tests:
 
 1. **Criterion Benchmarks** - Micro-benchmarks for individual components
 2. **wrk Load Tests** - HTTP benchmarking for throughput and latency
@@ -354,7 +354,7 @@ cargo bench -- --baseline main --significance-level 0.05
 3. Check for memory leaks with valgrind:
 
    ```bash
-   valgrind --leak-check=full ./target/release/embed_rs
+   valgrind --leak-check=full ./target/release/api
    ```
 
 ### Inconsistent Results

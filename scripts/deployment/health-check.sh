@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# FastEmbed Health Check Script
+# Smally Health Check Script
 # Verifies all services are healthy
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,7 +32,7 @@ log_info() {
 
 cd "$PROJECT_ROOT"
 
-echo "FastEmbed Health Check"
+echo "Smally Health Check"
 echo "======================"
 echo ""
 
@@ -61,7 +61,7 @@ done
 log_info "Checking service health..."
 
 # PostgreSQL
-if docker-compose -f docker-compose.prod.yml exec -T postgres pg_isready -U fastembed >/dev/null 2>&1; then
+if docker-compose -f docker-compose.prod.yml exec -T postgres pg_isready -U smally >/dev/null 2>&1; then
     log_success "PostgreSQL is healthy"
 else
     log_failure "PostgreSQL is unhealthy"

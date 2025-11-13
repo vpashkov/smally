@@ -10,7 +10,7 @@ terraform {
 
   # Optional: Remote state backend
   # backend "s3" {
-  #   bucket = "fastembed-terraform-state"
+  #   bucket = "smally-terraform-state"
   #   key    = "production/terraform.tfstate"
   #   region = "eu-central-1"
   # }
@@ -21,14 +21,14 @@ provider "hcloud" {
 }
 
 # SSH Key for server access
-resource "hcloud_ssh_key" "fastembed" {
-  name       = "fastembed-${var.environment}"
+resource "hcloud_ssh_key" "smally" {
+  name       = "smally-${var.environment}"
   public_key = file(var.ssh_public_key_path)
 }
 
 # Firewall rules
-resource "hcloud_firewall" "fastembed" {
-  name = "fastembed-${var.environment}"
+resource "hcloud_firewall" "smally" {
+  name = "smally-${var.environment}"
 
   # SSH
   rule {
@@ -84,25 +84,25 @@ resource "hcloud_firewall" "fastembed" {
 }
 
 # Main server
-resource "hcloud_server" "fastembed" {
-  name        = "fastembed-${var.environment}"
+resource "hcloud_server" "smally" {
+  name        = "smally-${var.environment}"
   server_type = var.server_type
   image       = var.server_image
   location    = var.location
 
-  ssh_keys = [hcloud_ssh_key.fastembed.id]
+  ssh_keys = [hcloud_ssh_key.smally.id]
 
-  firewall_ids = [hcloud_firewall.fastembed.id]
+  firewall_ids = [hcloud_firewall.smally.id]
 
   labels = {
     environment = var.environment
-    application = "fastembed"
+    application = "smally"
     managed_by  = "terraform"
   }
 
   # Cloud-init user data
   user_data = templatefile("${path.module}/cloud-init.yaml", {
-    hostname    = "fastembed-${var.environment}"
+    hostname    = "smally-${var.environment}"
     environment = var.environment
   })
 
@@ -113,52 +113,52 @@ resource "hcloud_server" "fastembed" {
 }
 
 # Volume for persistent data (optional)
-resource "hcloud_volume" "fastembed_data" {
+resource "hcloud_volume" "smally_data" {
   count    = var.enable_persistent_volume ? 1 : 0
-  name     = "fastembed-data-${var.environment}"
+  name     = "smally-data-${var.environment}"
   size     = var.volume_size
   location = var.location
   format   = "ext4"
 
   labels = {
     environment = var.environment
-    application = "fastembed"
+    application = "smally"
   }
 }
 
 # Attach volume to server
-resource "hcloud_volume_attachment" "fastembed_data" {
+resource "hcloud_volume_attachment" "smally_data" {
   count     = var.enable_persistent_volume ? 1 : 0
-  volume_id = hcloud_volume.fastembed_data[0].id
-  server_id = hcloud_server.fastembed.id
+  volume_id = hcloud_volume.smally_data[0].id
+  server_id = hcloud_server.smally.id
   automount = true
 }
 
 # Floating IP (for easy migration)
-resource "hcloud_floating_ip" "fastembed" {
+resource "hcloud_floating_ip" "smally" {
   count         = var.enable_floating_ip ? 1 : 0
   type          = "ipv4"
   home_location = var.location
 
   labels = {
     environment = var.environment
-    application = "fastembed"
+    application = "smally"
   }
 }
 
 # Attach floating IP
-resource "hcloud_floating_ip_assignment" "fastembed" {
+resource "hcloud_floating_ip_assignment" "smally" {
   count          = var.enable_floating_ip ? 1 : 0
-  floating_ip_id = hcloud_floating_ip.fastembed[0].id
-  server_id      = hcloud_server.fastembed.id
+  floating_ip_id = hcloud_floating_ip.smally[0].id
+  server_id      = hcloud_server.smally.id
 }
 
 # DNS A record (if using Cloudflare)
 # Requires cloudflare provider
-# resource "cloudflare_record" "fastembed" {
+# resource "cloudflare_record" "smally" {
 #   zone_id = var.cloudflare_zone_id
 #   name    = var.domain_name
-#   value   = hcloud_server.fastembed.ipv4_address
+#   value   = hcloud_server.smally.ipv4_address
 #   type    = "A"
 #   ttl     = 300
 #   proxied = var.cloudflare_proxy_enabled

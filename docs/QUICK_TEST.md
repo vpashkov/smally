@@ -74,7 +74,7 @@ NUM_REQUESTS=500 \
 ## Example Output
 
 ```
-FastEmbed Quick Load Test (k6)
+Smally Quick Load Test (k6)
 ================================
 Configuration:
   API URL:        http://localhost:8000/v1/embed

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# FastEmbed API - Create API Key Script (Production)
+# Smally API - Create API Key Script (Production)
 # Wrapper to run init_db.py inside Docker container
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

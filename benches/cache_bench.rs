@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use embed_rs::cache::lru::LruCache;
+use api::cache::lru::LruCache;
 
 fn bench_lru_put(c: &mut Criterion) {
     let mut group = c.benchmark_group("lru_put");

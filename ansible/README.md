@@ -1,4 +1,4 @@
-# Ansible Deployment for FastEmbed API
+# Ansible Deployment for Smally API
 
 Automated server configuration and application deployment using Ansible.
 
@@ -23,11 +23,11 @@ ansible-playbook -i inventory/hosts.yml playbook.yml
 
 ## What It Does
 
-This Ansible playbook configures a production-ready FastEmbed API server:
+This Ansible playbook configures a production-ready Smally API server:
 
 1. **Common Role**: OS hardening, firewall, fail2ban, unattended upgrades
 2. **Docker Role**: Docker and Docker Compose installation
-3. **FastEmbed Role**: Application deployment, SSL setup, systemd services
+3. **Smally Role**: Application deployment, SSL setup, systemd services
 
 ## Requirements
 
@@ -41,10 +41,10 @@ This Ansible playbook configures a production-ready FastEmbed API server:
 Edit `inventory/hosts.yml`:
 
 ```yaml
-fastembed-prod:
+smally-prod:
   ansible_host: X.X.X.X  # Your server IP
-  fastembed_domain: api.yourdomain.com
-  fastembed_git_repo: https://github.com/user/fastembed-api.git
+  smally_domain: api.yourdomain.com
+  smally_git_repo: https://github.com/user/smally-api.git
 ```
 
 ## Secrets Management
@@ -78,15 +78,15 @@ ansible-vault edit group_vars/all/vault.yml
 ### Option 1: Self-Signed (Development)
 
 ```yaml
-fastembed_ssl_selfsigned: true
+smally_ssl_selfsigned: true
 ```
 
 ### Option 2: Let's Encrypt (Production)
 
 ```yaml
-fastembed_ssl_selfsigned: false
-fastembed_ssl_cert: /etc/letsencrypt/live/yourdomain.com/fullchain.pem
-fastembed_ssl_key: /etc/letsencrypt/live/yourdomain.com/privkey.pem
+smally_ssl_selfsigned: false
+smally_ssl_cert: /etc/letsencrypt/live/yourdomain.com/fullchain.pem
+smally_ssl_key: /etc/letsencrypt/live/yourdomain.com/privkey.pem
 ```
 
 ## Playbook Tags
@@ -100,15 +100,15 @@ ansible-playbook playbook.yml --tags common
 # Only Docker
 ansible-playbook playbook.yml --tags docker
 
-# Only FastEmbed
-ansible-playbook playbook.yml --tags fastembed
+# Only Smally
+ansible-playbook playbook.yml --tags smally
 ```
 
 ## Roles
 
 ### Common
 
-- Creates `fastembed` user
+- Creates `smally` user
 - Configures UFW firewall (ports 22, 80, 443, 9090, 3000)
 - Sets kernel parameters for performance
 - Installs fail2ban for SSH protection
@@ -119,10 +119,10 @@ ansible-playbook playbook.yml --tags fastembed
 - Adds Docker APT repository
 - Installs Docker CE and Docker Compose
 - Configures Docker daemon (logging, storage driver)
-- Creates Docker network for FastEmbed
-- Adds fastembed user to docker group
+- Creates Docker network for Smally
+- Adds smally user to docker group
 
-### FastEmbed
+### Smally
 
 - Clones Git repository
 - Creates `.env.production` from template
@@ -140,14 +140,14 @@ Verify deployment:
 ssh root@your-server-ip
 
 # Check services
-systemctl status fastembed
+systemctl status smally
 docker ps
 
 # Test API
 curl http://localhost:8000/health
 
 # View logs
-docker-compose -f /home/fastembed/fastembed-api/docker-compose.prod.yml logs -f
+docker-compose -f /home/smally/smally-api/docker-compose.prod.yml logs -f
 ```
 
 ## Updating
@@ -170,10 +170,10 @@ See `roles/*/defaults/main.yml` for all available variables.
 
 Key variables:
 
-- `fastembed_workers`: Number of Uvicorn workers (default: 4)
-- `fastembed_model_name`: Embedding model (default: BAAI/bge-small-en-v1.5)
-- `fastembed_rate_limit_*`: Rate limits per tier
-- `fastembed_app_dir`: Application directory (default: /home/fastembed/fastembed-api)
+- `smally_workers`: Number of Uvicorn workers (default: 4)
+- `smally_model_name`: Embedding model (default: BAAI/bge-small-en-v1.5)
+- `smally_rate_limit_*`: Rate limits per tier
+- `smally_app_dir`: Application directory (default: /home/smally/smally-api)
 
 ## Troubleshooting
 
@@ -184,7 +184,7 @@ Key variables:
 ssh root@server-ip
 
 # Test ping
-ansible fastembed -i inventory/hosts.yml -m ping
+ansible smally -i inventory/hosts.yml -m ping
 ```
 
 **Vault password error**

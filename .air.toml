@@ -3,10 +3,10 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = []
-  bin = "./target/debug/embed_rs"
+  bin = "./target/debug/api"
   cmd = "cargo build"
   delay = 1000
-  full_bin = "./scripts/run.sh ./target/debug/embed_rs"
+  full_bin = "./scripts/run.sh ./target/debug/api"
   exclude_dir = ["assets", "tmp", "vendor", "testdata", "models", "target"]
   exclude_file = []
   exclude_regex = []

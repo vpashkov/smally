@@ -5,7 +5,7 @@ use prometheus::{
 
 pub static REQUEST_COUNT: Lazy<CounterVec> = Lazy::new(|| {
     register_counter_vec!(
-        "fastembed_requests_total",
+        "smally_requests_total",
         "Total number of embedding requests",
         &["status", "cached"]
     )
@@ -14,7 +14,7 @@ pub static REQUEST_COUNT: Lazy<CounterVec> = Lazy::new(|| {
 
 pub static REQUEST_LATENCY: Lazy<Histogram> = Lazy::new(|| {
     register_histogram!(
-        "fastembed_request_latency_seconds",
+        "smally_request_latency_seconds",
         "Request latency in seconds",
         vec![0.001, 0.005, 0.01, 0.02, 0.05, 0.1, 0.5, 1.0]
     )
@@ -23,7 +23,7 @@ pub static REQUEST_LATENCY: Lazy<Histogram> = Lazy::new(|| {
 
 pub static INFERENCE_LATENCY: Lazy<Histogram> = Lazy::new(|| {
     register_histogram!(
-        "fastembed_inference_latency_seconds",
+        "smally_inference_latency_seconds",
         "Model inference latency in seconds",
         vec![0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]
     )
@@ -32,7 +32,7 @@ pub static INFERENCE_LATENCY: Lazy<Histogram> = Lazy::new(|| {
 
 pub static CACHE_HITS: Lazy<CounterVec> = Lazy::new(|| {
     register_counter_vec!(
-        "fastembed_cache_hits_total",
+        "smally_cache_hits_total",
         "Total number of cache hits",
         &["cache_level"]
     )
@@ -41,7 +41,7 @@ pub static CACHE_HITS: Lazy<CounterVec> = Lazy::new(|| {
 
 pub static CACHE_MISSES: Lazy<prometheus::Counter> = Lazy::new(|| {
     prometheus::register_counter!(
-        "fastembed_cache_misses_total",
+        "smally_cache_misses_total",
         "Total number of cache misses"
     )
     .unwrap()
@@ -49,7 +49,7 @@ pub static CACHE_MISSES: Lazy<prometheus::Counter> = Lazy::new(|| {
 
 pub static TOKEN_COUNT: Lazy<Histogram> = Lazy::new(|| {
     register_histogram!(
-        "fastembed_token_count",
+        "smally_token_count",
         "Number of tokens in requests",
         vec![1.0, 5.0, 10.0, 20.0, 50.0, 100.0, 128.0]
     )
@@ -58,7 +58,7 @@ pub static TOKEN_COUNT: Lazy<Histogram> = Lazy::new(|| {
 
 pub static ERROR_COUNT: Lazy<CounterVec> = Lazy::new(|| {
     register_counter_vec!(
-        "fastembed_errors_total",
+        "smally_errors_total",
         "Total number of errors",
         &["error_type"]
     )
@@ -67,7 +67,7 @@ pub static ERROR_COUNT: Lazy<CounterVec> = Lazy::new(|| {
 
 pub static RATE_LIMIT_EXCEEDED: Lazy<CounterVec> = Lazy::new(|| {
     register_counter_vec!(
-        "fastembed_rate_limit_exceeded_total",
+        "smally_rate_limit_exceeded_total",
         "Total number of rate limit exceeded errors",
         &["tier"]
     )

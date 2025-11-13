@@ -64,7 +64,7 @@ RUN wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.16.3/o
 WORKDIR /app
 
 # Copy the built binaries from builder stage
-COPY --from=builder /build/target/release/embed_rs /app/embed_rs
+COPY --from=builder /build/target/release/api /app/api
 COPY --from=builder /build/target/release/create_api_key /app/create_api_key
 
 # Copy scripts
@@ -72,7 +72,7 @@ COPY scripts /app/scripts
 
 # Create directories for models and logs
 RUN mkdir -p /app/models /app/logs && \
-    chmod +x /app/embed_rs && \
+    chmod +x /app/api && \
     chmod +x /app/create_api_key && \
     chmod +x /app/scripts/*.sh 2>/dev/null || true && \
     chmod +x /app/scripts/deployment/*.sh 2>/dev/null || true
@@ -85,4 +85,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Run the application
-CMD ["/app/embed_rs"]
+CMD ["/app/api"]

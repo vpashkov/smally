@@ -1,6 +1,6 @@
 # Nginx Configuration
 
-Nginx reverse proxy configuration for FastEmbed API.
+Nginx reverse proxy configuration for Smally API.
 
 ## Directory Structure
 
@@ -8,7 +8,7 @@ Nginx reverse proxy configuration for FastEmbed API.
 nginx/
 ├── nginx.conf              # Main Nginx configuration
 ├── conf.d/
-│   └── fastembed.conf     # Site-specific configuration
+│   └── smally.conf     # Site-specific configuration
 ├── ssl/                    # SSL certificates (gitignored)
 │   ├── fullchain.pem      # Full certificate chain
 │   └── privkey.pem        # Private key
@@ -61,7 +61,7 @@ nginx/
 
 Add to crontab (`crontab -e`):
 ```bash
-0 3 * * * certbot renew --quiet && cp /etc/letsencrypt/live/api.yourdomain.com/*.pem /path/to/fastembed-api/nginx/ssl/ && cd /path/to/fastembed-api && docker-compose -f docker-compose.prod.yml restart nginx
+0 3 * * * certbot renew --quiet && cp /etc/letsencrypt/live/api.yourdomain.com/*.pem /path/to/smally-api/nginx/ssl/ && cd /path/to/smally-api && docker-compose -f docker-compose.prod.yml restart nginx
 ```
 
 ### Option 2: Self-Signed (Development/Testing)
@@ -73,7 +73,7 @@ mkdir -p nginx/ssl
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout nginx/ssl/privkey.pem \
     -out nginx/ssl/fullchain.pem \
-    -subj "/CN=api.yourdomain.com/O=FastEmbed/C=US"
+    -subj "/CN=api.yourdomain.com/O=Smally/C=US"
 ```
 
 **Note:** Browsers will show a security warning. For testing only!
@@ -90,7 +90,7 @@ If you have your own certificate from a CA:
 
 ### Update Domain
 
-Edit `nginx/conf.d/fastembed.conf`:
+Edit `nginx/conf.d/smally.conf`:
 
 ```nginx
 server_name api.yourdomain.com;  # Change this
@@ -113,7 +113,7 @@ limit_req_zone $binary_remote_addr zone=api_limit:10m rate=200r/s;
 
 ### Custom Headers
 
-Add security headers in `nginx/conf.d/fastembed.conf`:
+Add security headers in `nginx/conf.d/smally.conf`:
 
 ```nginx
 add_header X-Custom-Header "value" always;
@@ -175,7 +175,7 @@ chown -R $USER:$USER nginx/ssl
 # Increase rate limit in nginx.conf
 limit_req_zone $binary_remote_addr zone=api_limit:10m rate=200r/s;
 
-# Or increase burst in fastembed.conf
+# Or increase burst in smally.conf
 limit_req zone=api_limit burst=50 nodelay;
 ```
 
@@ -200,7 +200,7 @@ sudo certbot renew
    ```
 
 2. **Use strong ciphers:**
-   - Already configured in `fastembed.conf`
+   - Already configured in `smally.conf`
    - TLS 1.2+ only
    - Forward secrecy enabled
 
@@ -235,11 +235,11 @@ docker-compose -f docker-compose.prod.yml exec nginx nginx -s reload
 
 ### WebSocket Support (if needed)
 
-Add to location block in `fastembed.conf`:
+Add to location block in `smally.conf`:
 
 ```nginx
 location /ws/ {
-    proxy_pass http://fastembed_backend;
+    proxy_pass http://smally_backend;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
@@ -263,7 +263,7 @@ location = /404.html {
 location /admin/ {
     allow 203.0.113.0/24;
     deny all;
-    proxy_pass http://fastembed_backend;
+    proxy_pass http://smally_backend;
 }
 ```
 

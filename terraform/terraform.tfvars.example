@@ -42,7 +42,7 @@ volume_size              = 100  # GB
 enable_floating_ip = true
 
 # Domain (optional - for DNS)
-domain_name = "api.fastembed.io"  # Change to your domain
+domain_name = "api.smally.io"  # Change to your domain
 
 # Cloudflare (optional - if using Cloudflare DNS)
 # cloudflare_zone_id      = "YOUR_ZONE_ID"

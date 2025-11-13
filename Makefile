@@ -1,7 +1,7 @@
 .PHONY: help deps build run services-up services-down model init-db clean test docker-build docker-up docker-down deploy quick-deploy health-check backup create-api-key logs-prod check bench bench-cache bench-tokenizer bench-inference perf-test load-test load-test-k6 load-test-wrk quick-test
 
 help:
-	@echo "FastEmbed API (Rust) - Make Commands"
+	@echo "Smally API (Rust) - Make Commands"
 	@echo ""
 	@echo "Setup:"
 	@echo "  make deps          - Download Rust dependencies"

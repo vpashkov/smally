@@ -1,13 +1,13 @@
 [Unit]
-Description=FastEmbed Database Backup
-After=fastembed.service
+Description=Smally Database Backup
+After=smally.service
 
 [Service]
 Type=oneshot
-User=fastembed
-Group=fastembed
-WorkingDirectory=/home/fastembed/fastembed-api
-ExecStart=/home/fastembed/fastembed-api/scripts/deployment/backup.sh
+User=smally
+Group=smally
+WorkingDirectory=/home/smally/smally-api
+ExecStart=/home/smally/smally-api/scripts/deployment/backup.sh
 
 # Logging
 StandardOutput=journal

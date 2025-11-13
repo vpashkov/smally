@@ -1,4 +1,4 @@
-# Terraform Configuration for FastEmbed API
+# Terraform Configuration for Smally API
 
 Infrastructure provisioning for Hetzner Cloud using Terraform.
 
@@ -146,7 +146,7 @@ Outputs:
 
 server_ipv4 = "X.X.X.X"
 server_ipv6 = "Y:Y:Y::1"
-server_name = "fastembed-production"
+server_name = "smally-production"
 ssh_command = "ssh root@X.X.X.X"
 firewall_id = "123456"
 ```
@@ -227,7 +227,7 @@ Create `backend.tf`:
 terraform {
   backend "s3" {
     bucket         = "my-terraform-state"
-    key            = "fastembed/production/terraform.tfstate"
+    key            = "smally/production/terraform.tfstate"
     region         = "eu-central-1"
     encrypt        = true
     dynamodb_table = "terraform-locks"
@@ -268,10 +268,10 @@ If you created resources manually:
 
 ```bash
 # Import server
-terraform import hcloud_server.fastembed 12345
+terraform import hcloud_server.smally 12345
 
 # Import firewall
-terraform import hcloud_firewall.fastembed 67890
+terraform import hcloud_firewall.smally 67890
 ```
 
 ### Workspace Isolation
@@ -309,9 +309,9 @@ hcloud server list
 
 **Fix**:
 
-1. Import: `terraform import hcloud_server.fastembed <id>`
+1. Import: `terraform import hcloud_server.smally <id>`
 2. Or destroy: `terraform destroy`
-3. Or rename in variables: `server_name = "fastembed-v2"`
+3. Or rename in variables: `server_name = "smally-v2"`
 
 ### SSH Key Exists
 
@@ -324,7 +324,7 @@ hcloud server list
 hcloud ssh-key list
 
 # Import
-terraform import hcloud_ssh_key.fastembed <key-id>
+terraform import hcloud_ssh_key.smally <key-id>
 
 # Or delete old key
 hcloud ssh-key delete <key-id>

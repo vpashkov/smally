@@ -1,30 +1,30 @@
 ---
-# FastEmbed application deployment
+# Smally application deployment
 
-- name: Create .ssh directory for fastembed user
+- name: Create .ssh directory for smally user
   file:
-    path: "/home/{{ fastembed_user }}/.ssh"
+    path: "/home/{{ smally_user }}/.ssh"
     state: directory
-    owner: "{{ fastembed_user }}"
-    group: "{{ fastembed_user }}"
+    owner: "{{ smally_user }}"
+    group: "{{ smally_user }}"
     mode: '0700'
 
 - name: Copy GitHub deploy key
   copy:
-    content: "{{ fastembed_git_deploy_key }}"
-    dest: "/home/{{ fastembed_user }}/.ssh/github_deploy_key"
-    owner: "{{ fastembed_user }}"
-    group: "{{ fastembed_user }}"
+    content: "{{ smally_git_deploy_key }}"
+    dest: "/home/{{ smally_user }}/.ssh/github_deploy_key"
+    owner: "{{ smally_user }}"
+    group: "{{ smally_user }}"
     mode: '0600'
   no_log: true
-  when: fastembed_git_deploy_key is defined
+  when: smally_git_deploy_key is defined
 
 - name: Configure SSH to use deploy key for GitHub
   blockinfile:
-    path: "/home/{{ fastembed_user }}/.ssh/config"
+    path: "/home/{{ smally_user }}/.ssh/config"
     create: yes
-    owner: "{{ fastembed_user }}"
-    group: "{{ fastembed_user }}"
+    owner: "{{ smally_user }}"
+    group: "{{ smally_user }}"
     mode: '0600'
     block: |
       Host github.com
@@ -32,89 +32,89 @@
         User git
         IdentityFile ~/.ssh/github_deploy_key
         StrictHostKeyChecking no
-  when: fastembed_git_deploy_key is defined
+  when: smally_git_deploy_key is defined
 
 - name: Create application directory
   file:
-    path: "{{ fastembed_app_dir }}"
+    path: "{{ smally_app_dir }}"
     state: directory
-    owner: "{{ fastembed_user }}"
-    group: "{{ fastembed_user }}"
+    owner: "{{ smally_user }}"
+    group: "{{ smally_user }}"
     mode: '0755'
 
-- name: Clone FastEmbed repository
+- name: Clone Smally repository
   git:
-    repo: "{{ fastembed_git_repo }}"
-    dest: "{{ fastembed_app_dir }}"
-    version: "{{ fastembed_git_branch }}"
+    repo: "{{ smally_git_repo }}"
+    dest: "{{ smally_app_dir }}"
+    version: "{{ smally_git_branch }}"
     force: yes
     accept_hostkey: yes
-  become_user: "{{ fastembed_user }}"
-  notify: restart fastembed
+  become_user: "{{ smally_user }}"
+  notify: restart smally
 
 - name: Create .env from template
   template:
     src: env.production.j2
-    dest: "{{ fastembed_app_dir }}/.env"
-    owner: "{{ fastembed_user }}"
-    group: "{{ fastembed_user }}"
+    dest: "{{ smally_app_dir }}/.env"
+    owner: "{{ smally_user }}"
+    group: "{{ smally_user }}"
     mode: '0600'
-  notify: restart fastembed
+  notify: restart smally
 
 - name: Create SSL certificate directory
   file:
-    path: "{{ fastembed_app_dir }}/nginx/ssl"
+    path: "{{ smally_app_dir }}/nginx/ssl"
     state: directory
-    owner: "{{ fastembed_user }}"
-    group: "{{ fastembed_user }}"
+    owner: "{{ smally_user }}"
+    group: "{{ smally_user }}"
     mode: '0755'
 
 - name: Check if SSL certificates exist
   stat:
-    path: "{{ fastembed_app_dir }}/nginx/ssl/fullchain.pem"
+    path: "{{ smally_app_dir }}/nginx/ssl/fullchain.pem"
   register: ssl_cert
 
 - name: Generate self-signed SSL certificate (if not provided)
   command: >
     openssl req -x509 -nodes -days 365 -newkey rsa:2048
-    -keyout {{ fastembed_app_dir }}/nginx/ssl/privkey.pem
-    -out {{ fastembed_app_dir }}/nginx/ssl/fullchain.pem
-    -subj "/CN={{ fastembed_domain }}"
-  become_user: "{{ fastembed_user }}"
-  when: not ssl_cert.stat.exists and fastembed_ssl_selfsigned
+    -keyout {{ smally_app_dir }}/nginx/ssl/privkey.pem
+    -out {{ smally_app_dir }}/nginx/ssl/fullchain.pem
+    -subj "/CN={{ smally_domain }}"
+  become_user: "{{ smally_user }}"
+  when: not ssl_cert.stat.exists and smally_ssl_selfsigned
 
 - name: Copy SSL certificates (if provided)
   copy:
     src: "{{ item.src }}"
-    dest: "{{ fastembed_app_dir }}/nginx/ssl/{{ item.dest }}"
-    owner: "{{ fastembed_user }}"
-    group: "{{ fastembed_user }}"
+    dest: "{{ smally_app_dir }}/nginx/ssl/{{ item.dest }}"
+    owner: "{{ smally_user }}"
+    group: "{{ smally_user }}"
     mode: '0600'
   loop:
-    - { src: "{{ fastembed_ssl_cert }}", dest: "fullchain.pem" }
-    - { src: "{{ fastembed_ssl_key }}", dest: "privkey.pem" }
+    - { src: "{{ smally_ssl_cert }}", dest: "fullchain.pem" }
+    - { src: "{{ smally_ssl_key }}", dest: "privkey.pem" }
   when:
-    - not fastembed_ssl_selfsigned
-    - fastembed_ssl_cert is defined
-    - fastembed_ssl_key is defined
-  notify: restart fastembed
+    - not smally_ssl_selfsigned
+    - smally_ssl_cert is defined
+    - smally_ssl_key is defined
+  notify: restart smally
 
 - name: Create backup directory
   file:
-    path: "{{ fastembed_backup_dir }}"
+    path: "{{ smally_backup_dir }}"
     state: directory
-    owner: "{{ fastembed_user }}"
-    group: "{{ fastembed_user }}"
+    owner: "{{ smally_user }}"
+    group: "{{ smally_user }}"
     mode: '0755'
 
 - name: Check if deployment scripts exist
   stat:
-    path: "{{ fastembed_app_dir }}/scripts/deployment"
+    path: "{{ smally_app_dir }}/scripts/deployment"
   register: deployment_scripts_dir
 
 - name: Make deployment scripts executable
   file:
-    path: "{{ fastembed_app_dir }}/scripts/deployment/{{ item }}"
+    path: "{{ smally_app_dir }}/scripts/deployment/{{ item }}"
     mode: '0755'
   loop:
     - deploy.sh
@@ -125,43 +125,43 @@
   ignore_errors: yes
 
 - name: Run deployment script
-  command: "{{ fastembed_app_dir }}/scripts/deployment/deploy.sh"
+  command: "{{ smally_app_dir }}/scripts/deployment/deploy.sh"
   args:
-    chdir: "{{ fastembed_app_dir }}"
-  become_user: "{{ fastembed_user }}"
+    chdir: "{{ smally_app_dir }}"
+  become_user: "{{ smally_user }}"
   register: deploy_result
   changed_when: "'Starting services' in deploy_result.stdout"
   when: deployment_scripts_dir.stat.exists
 
 - name: Check if systemd service files exist
   stat:
-    path: "{{ fastembed_app_dir }}/systemd"
+    path: "{{ smally_app_dir }}/systemd"
   register: systemd_dir
 
 - name: Copy systemd service files
   copy:
-    src: "{{ fastembed_app_dir }}/systemd/{{ item }}"
+    src: "{{ smally_app_dir }}/systemd/{{ item }}"
     dest: "/etc/systemd/system/{{ item }}"
     remote_src: yes
     mode: '0644'
   loop:
-    - fastembed.service
-    - fastembed-backup.service
-    - fastembed-backup.timer
+    - smally.service
+    - smally-backup.service
+    - smally-backup.timer
   when: systemd_dir.stat.exists
   ignore_errors: yes
   notify: reload systemd
 
-- name: Enable and start FastEmbed service
+- name: Enable and start Smally service
   systemd:
-    name: fastembed
+    name: smally
     enabled: yes
     state: started
     daemon_reload: yes
 
 - name: Enable and start backup timer
   systemd:
-    name: fastembed-backup.timer
+    name: smally-backup.timer
     enabled: yes
     state: started
     daemon_reload: yes
@@ -178,8 +178,8 @@
 - name: Display deployment information
   debug:
     msg:
-      - "FastEmbed API deployed successfully!"
-      - "API URL: https://{{ fastembed_domain }}/v1"
+      - "Smally API deployed successfully!"
+      - "API URL: https://{{ smally_domain }}/v1"
       - "Metrics: http://{{ ansible_host }}:9090"
       - "Grafana: http://{{ ansible_host }}:3000"
       - "Check health: curl http://localhost:8000/health"

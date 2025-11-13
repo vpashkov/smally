@@ -1,4 +1,4 @@
-# FastEmbed Query API (Rust Implementation)
+# Smally Query API (Rust Implementation)
 
 Ultra-fast semantic embeddings for real-time search and autocomplete - implemented in Rust.
 
@@ -156,7 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Architecture
 
 ```
-FastEmbed API (Rust)
+Smally API (Rust)
 ├── HTTP Server (Axum)
 ├── ONNX Runtime (CPU-optimized)
 ├── Two-tier caching
@@ -193,10 +193,10 @@ Cache hit latency: <0.05ms (L1), 0.3-0.8ms (L2)
 Access metrics at `http://localhost:8000/metrics`
 
 Key metrics:
-- `fastembed_request_latency_seconds` - Request latency histogram
-- `fastembed_inference_latency_seconds` - Model inference time
-- `fastembed_cache_hits_total` - Cache hit counter
-- `fastembed_requests_total` - Total requests by status
+- `smally_request_latency_seconds` - Request latency histogram
+- `smally_inference_latency_seconds` - Model inference time
+- `smally_cache_hits_total` - Cache hit counter
+- `smally_requests_total` - Total requests by status
 
 ### Health Check
 
@@ -286,7 +286,7 @@ See [PERFORMANCE.md](PERFORMANCE.md) for detailed documentation on:
 
 ```bash
 make build
-# Produces: target/release/embed_rs
+# Produces: target/release/api
 ```
 
 ## Dependencies

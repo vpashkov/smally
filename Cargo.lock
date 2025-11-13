@@ -64,6 +64,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
+name = "api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "base64 0.22.1",
+ "bcrypt",
+ "chrono",
+ "criterion",
+ "dashmap",
+ "dotenvy",
+ "hex",
+ "hyper",
+ "ndarray 0.15.6",
+ "once_cell",
+ "ort",
+ "parking_lot",
+ "prometheus",
+ "rand",
+ "redis",
+ "rustc_version",
+ "seahash",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tower 0.4.13",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "arc-swap"
 version = "1.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -558,41 +593,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "embed_rs"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "base64 0.22.1",
- "bcrypt",
- "chrono",
- "criterion",
- "dashmap",
- "dotenvy",
- "hex",
- "hyper",
- "ndarray 0.15.6",
- "once_cell",
- "ort",
- "parking_lot",
- "prometheus",
- "rand",
- "redis",
- "rustc_version",
- "seahash",
- "serde",
- "serde_json",
- "sha2",
- "sqlx",
- "thiserror",
- "tokio",
- "tower 0.4.13",
- "tower-http",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

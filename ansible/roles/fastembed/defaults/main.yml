@@ -1,51 +1,51 @@
 ---
-# FastEmbed role default variables
+# Smally role default variables
 
 # Application
-fastembed_user: fastembed
-fastembed_app_dir: /home/fastembed/fastembed-api
-fastembed_backup_dir: /home/fastembed/backups
-fastembed_git_repo: https://github.com/yourusername/fastembed-api.git
-fastembed_git_branch: main
-fastembed_domain: api.fastembed.io
+smally_user: smally
+smally_app_dir: /home/smally/smally-api
+smally_backup_dir: /home/smally/backups
+smally_git_repo: https://github.com/yourusername/smally-api.git
+smally_git_branch: main
+smally_domain: api.smally.io
 
 # Database
-fastembed_db_name: fastembed
-fastembed_db_user: fastembed
-fastembed_db_password: changeme_db_password
+smally_db_name: smally
+smally_db_user: smally
+smally_db_password: changeme_db_password
 
 # Security
-fastembed_secret_key: changeme_secret_key_min_32_chars
-fastembed_jwt_secret: changeme_jwt_secret_min_32_chars
+smally_secret_key: changeme_secret_key_min_32_chars
+smally_jwt_secret: changeme_jwt_secret_min_32_chars
 
 # SSL
-fastembed_ssl_selfsigned: true
-# fastembed_ssl_cert: /path/to/fullchain.pem
-# fastembed_ssl_key: /path/to/privkey.pem
+smally_ssl_selfsigned: true
+# smally_ssl_cert: /path/to/fullchain.pem
+# smally_ssl_key: /path/to/privkey.pem
 
 # CORS
-fastembed_allowed_origins:
-  - "https://{{ fastembed_domain }}"
+smally_allowed_origins:
+  - "https://{{ smally_domain }}"
   - "http://localhost:3000"
 
 # Rate Limits (requests per minute)
-fastembed_rate_limit_free: 10
-fastembed_rate_limit_basic: 100
-fastembed_rate_limit_pro: 1000
-fastembed_rate_limit_enterprise: 10000
+smally_rate_limit_free: 10
+smally_rate_limit_basic: 100
+smally_rate_limit_pro: 1000
+smally_rate_limit_enterprise: 10000
 
 # Cache
-fastembed_cache_ttl: 3600
+smally_cache_ttl: 3600
 
 # Model
-fastembed_model_name: sentence-transformers/all-MiniLM-L6-v2
-fastembed_model_path: /app/models/all-MiniLM-L6-v2-onnx
-fastembed_embedding_dim: 384
-fastembed_max_batch_size: 1
+smally_model_name: sentence-transformers/all-MiniLM-L6-v2
+smally_model_path: /app/models/all-MiniLM-L6-v2-onnx
+smally_embedding_dim: 384
+smally_max_batch_size: 1
 
 # Server
-fastembed_workers: 4
+smally_workers: 4
 
 # Admin
-fastembed_admin_email: admin@fastembed.io
-fastembed_admin_password: changeme_admin_password
+smally_admin_email: admin@smally.io
+smally_admin_password: changeme_admin_password

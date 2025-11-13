@@ -1,17 +1,17 @@
 ---
-# FastEmbed API - Ansible Playbook
-# Configures and deploys FastEmbed API to production server
+# Smally API - Ansible Playbook
+# Configures and deploys Smally API to production server
 
-- name: Deploy FastEmbed API
-  hosts: fastembed
+- name: Deploy Smally API
+  hosts: smally
   become: yes
   gather_facts: yes
 
   vars:
-    fastembed_user: fastembed
-    fastembed_home: /home/fastembed
-    fastembed_app_dir: "{{ fastembed_home }}/fastembed-api"
-    fastembed_env: production
+    smally_user: smally
+    smally_home: /home/smally
+    smally_app_dir: "{{ smally_home }}/smally-api"
+    smally_env: production
 
   pre_tasks:
     - name: Fix Docker repository conflicts
@@ -38,8 +38,8 @@
     - role: docker
       tags: ['docker', 'setup']
 
-    - role: fastembed
-      tags: ['fastembed', 'app', 'deploy']
+    - role: smally
+      tags: ['smally', 'app', 'deploy']
 
   post_tasks:
     - name: Display deployment information
@@ -49,11 +49,11 @@
           - "API URL: https://{{ ansible_host }}/v1/embed"
           - "Grafana: http://{{ ansible_host }}:3000"
           - "Prometheus: http://{{ ansible_host }}:9090"
-          - "SSH: ssh {{ fastembed_user }}@{{ ansible_host }}"
+          - "SSH: ssh {{ smally_user }}@{{ ansible_host }}"
 
     - name: Run health check
-      command: "{{ fastembed_app_dir }}/scripts/deployment/health-check.sh"
-      become_user: "{{ fastembed_user }}"
+      command: "{{ smally_app_dir }}/scripts/deployment/health-check.sh"
+      become_user: "{{ smally_user }}"
       register: health_check
       changed_when: false
       failed_when: false
@@ -68,8 +68,8 @@
       when: "'failed' in health_check.stdout"
       block:
         - name: Show nginx container logs
-          command: docker logs fastembed-nginx --tail 50
-          become_user: "{{ fastembed_user }}"
+          command: docker logs smally-nginx --tail 50
+          become_user: "{{ smally_user }}"
           register: nginx_logs
           changed_when: false
           ignore_errors: yes

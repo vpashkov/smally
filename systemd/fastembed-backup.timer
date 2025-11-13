@@ -1,6 +1,6 @@
 [Unit]
-Description=FastEmbed Daily Backup Timer
-Requires=fastembed-backup.service
+Description=Smally Daily Backup Timer
+Requires=smally-backup.service
 
 [Timer]
 # Run daily at 2 AM

@@ -12,7 +12,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}FastEmbed API - Load Testing with wrk${NC}"
+echo -e "${YELLOW}Smally API - Load Testing with wrk${NC}"
 echo "=================================="
 echo ""
 

@@ -1,6 +1,6 @@
 # Rust Implementation Details
 
-This document describes the Rust implementation of the FastEmbed API, which is a port of the Python version.
+This document describes the Rust implementation of the Smally API, which is a port of the Python version.
 
 ## Architecture Overview
 
@@ -108,7 +108,7 @@ make run
 
 # Or directly
 cargo build --release
-./target/release/embed_rs
+./target/release/api
 ```
 
 ## Configuration
@@ -155,8 +155,8 @@ cargo build --release
 cargo build --release --target aarch64-unknown-linux-gnu
 
 # Docker
-docker build -t fastembed-rs .
-docker run -p 8000:8000 --env-file .env fastembed-rs
+docker build -t smally-rs .
+docker run -p 8000:8000 --env-file .env smally-rs
 ```
 
 ## Maintenance

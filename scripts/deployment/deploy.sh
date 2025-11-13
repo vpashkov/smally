@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# FastEmbed API Deployment Script
+# Smally API Deployment Script
 # This script deploys the application to production
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -127,7 +127,7 @@ if [ $RETRIES -eq 0 ]; then
 fi
 
 log_info "Copying model files to container..."
-docker cp models/all-MiniLM-L6-v2-onnx fastembed-api:/app/models/ || log_warn "Failed to copy models, they may already exist"
+docker cp models/all-MiniLM-L6-v2-onnx smally-api:/app/models/ || log_warn "Failed to copy models, they may already exist"
 
 log_info "Initializing database..."
 docker-compose -f docker-compose.prod.yml --env-file "$ENV_FILE" exec -T app /app/scripts/init_db.sh admin@example.com scale || true

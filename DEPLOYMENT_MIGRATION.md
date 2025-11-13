@@ -1,10 +1,10 @@
 # Deployment Migration Guide: Go → Rust
 
-This document explains the changes needed to deploy the Rust version of the FastEmbed API.
+This document explains the changes needed to deploy the Rust version of the Smally API.
 
 ## What Changed
 
-The FastEmbed API was rewritten from **Go** to **Rust** for better performance and lower latency.
+The Smally API was rewritten from **Go** to **Rust** for better performance and lower latency.
 
 ## Required Changes
 
@@ -14,13 +14,13 @@ In `ansible/group_vars/all/vault.yml` or your inventory file, update the git rep
 
 **Before (Go version):**
 ```yaml
-fastembed_git_repo: "git@github.com:yourusername/fastembed-go.git"
+smally_git_repo: "git@github.com:yourusername/smally-go.git"
 ```
 
 **After (Rust version):**
 ```yaml
-fastembed_git_repo: "git@github.com:yourusername/embed.git"  # Or your Rust repo URL
-fastembed_git_branch: "main"  # Make sure this points to the Rust version
+smally_git_repo: "git@github.com:yourusername/embed.git"  # Or your Rust repo URL
+smally_git_branch: "main"  # Make sure this points to the Rust version
 ```
 
 ### 2. Files Already Updated
@@ -37,7 +37,7 @@ The following files have been updated to work with the Rust version:
 **Container Structure:**
 ```
 app container:
-  /app/embed_rs              - Main API server (Rust binary)
+  /app/api              - Main API server (Rust binary)
   /app/create_api_key        - CLI tool to create API keys (Rust binary)
   /app/scripts/init_db.sh    - Database initialization (Bash script)
 ```
@@ -81,7 +81,7 @@ The `.env` file format remains the same. The Rust version uses the same environm
 
 ```bash
 # Database
-DATABASE_URL=postgres://user:pass@postgres:5432/fastembed
+DATABASE_URL=postgres://user:pass@postgres:5432/smally
 
 # Redis
 REDIS_URL=redis://redis:6379
@@ -210,7 +210,7 @@ ls -lh models/all-MiniLM-L6-v2-onnx/
 docker-compose -f docker-compose.prod.yml exec app ls -lh /app/models/all-MiniLM-L6-v2-onnx/
 
 # If missing, manually copy them
-docker cp models/all-MiniLM-L6-v2-onnx fastembed-api:/app/models/
+docker cp models/all-MiniLM-L6-v2-onnx smally-api:/app/models/
 ```
 
 **Issue:** Deployment script fails with "ignore_errors"
@@ -221,7 +221,7 @@ docker cp models/all-MiniLM-L6-v2-onnx fastembed-api:/app/models/
 
 If you need to rollback to the Go version:
 
-1. Update `fastembed_git_repo` back to the Go repository
+1. Update `smally_git_repo` back to the Go repository
 2. Run Ansible playbook again
 3. The Go version will be deployed
 

@@ -44,7 +44,7 @@ pub struct Settings {
 impl Settings {
     pub fn new() -> Self {
         Settings {
-            app_name: get_env("APP_NAME", "FastEmbed Query API"),
+            app_name: get_env("APP_NAME", "Smally Query API"),
             version: get_env("VERSION", "0.1.0"),
             debug: get_env_bool("DEBUG", false),
 
@@ -64,7 +64,7 @@ impl Settings {
 
             database_url: get_env(
                 "DATABASE_URL",
-                "postgres://localhost:5433/fastembed?sslmode=disable",
+                "postgres://localhost:5433/smally?sslmode=disable",
             ),
 
             secret_key: get_env(

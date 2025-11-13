@@ -1,6 +1,6 @@
 #cloud-config
 
-# FastEmbed Server Initial Configuration
+# Smally Server Initial Configuration
 # Runs on first boot via cloud-init
 
 hostname: ${hostname}
@@ -37,25 +37,25 @@ write_files:
       Unattended-Upgrade::Remove-Unused-Dependencies "true";
       Unattended-Upgrade::Automatic-Reboot "false";
 
-  - path: /etc/sysctl.d/99-fastembed.conf
+  - path: /etc/sysctl.d/99-smally.conf
     content: |
-      # FastEmbed kernel optimizations
+      # Smally kernel optimizations
       net.core.somaxconn = 65535
       net.ipv4.tcp_max_syn_backlog = 8192
       net.ipv4.ip_local_port_range = 1024 65535
       vm.swappiness = 10
       fs.file-max = 2097152
 
-  - path: /etc/security/limits.d/99-fastembed.conf
+  - path: /etc/security/limits.d/99-smally.conf
     content: |
-      # FastEmbed file limits
+      # Smally file limits
       * soft nofile 65536
       * hard nofile 65536
 
 # Run commands on first boot
 runcmd:
   # Apply kernel parameters
-  - sysctl -p /etc/sysctl.d/99-fastembed.conf
+  - sysctl -p /etc/sysctl.d/99-smally.conf
 
   # Configure firewall (will be managed by Terraform, but set basic rules)
   - ufw default deny incoming
@@ -84,4 +84,4 @@ runcmd:
   - echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
 # Final message
-final_message: "FastEmbed server setup complete. System ready for Ansible provisioning."
+final_message: "Smally server setup complete. System ready for Ansible provisioning."

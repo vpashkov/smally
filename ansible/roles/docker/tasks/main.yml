@@ -65,18 +65,18 @@
     enabled: yes
     state: started
 
-- name: Add fastembed user to docker group
+- name: Add smally user to docker group
   user:
-    name: "{{ fastembed_user }}"
+    name: "{{ smally_user }}"
     groups: docker
     append: yes
 
-- name: Create .docker directory for fastembed user
+- name: Create .docker directory for smally user
   file:
-    path: "/home/{{ fastembed_user }}/.docker"
+    path: "/home/{{ smally_user }}/.docker"
     state: directory
-    owner: "{{ fastembed_user }}"
-    group: "{{ fastembed_user }}"
+    owner: "{{ smally_user }}"
+    group: "{{ smally_user }}"
     mode: '0755'
 
 - name: Configure Docker daemon
@@ -106,6 +106,6 @@
 
 - name: Create Docker network
   community.docker.docker_network:
-    name: fastembed-network
+    name: smally-network
     state: present
-  become_user: "{{ fastembed_user }}"
+  become_user: "{{ smally_user }}"

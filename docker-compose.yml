@@ -1,24 +1,24 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: fastembed-postgres
+    container_name: smally-postgres
     environment:
-      POSTGRES_USER: fastembed
-      POSTGRES_PASSWORD: fastembed_dev_password
-      POSTGRES_DB: fastembed
+      POSTGRES_USER: smally
+      POSTGRES_PASSWORD: smally_dev_password
+      POSTGRES_DB: smally
     ports:
       - "5433:5432"  # Use port 5433 on host to avoid conflict
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fastembed"]
+      test: ["CMD-SHELL", "pg_isready -U smally"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: fastembed-redis
+    container_name: smally-redis
     ports:
       - "6379:6379"
     volumes:

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# FastEmbed Database Initialization Script
+# Smally Database Initialization Script
 # Creates database tables and admin user with API key
 #
 # Usage:
@@ -18,7 +18,7 @@ NC='\033[0m'
 EMAIL="${1:-admin@example.com}"
 TIER="${2:-scale}"
 
-echo -e "${YELLOW}FastEmbed Database Initialization${NC}"
+echo -e "${YELLOW}Smally Database Initialization${NC}"
 echo "=================================="
 echo ""
 
@@ -37,11 +37,11 @@ if [ -n "${DATABASE_URL:-}" ]; then
     DB_PORT=$(echo "$DATABASE_URL" | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
     DB_NAME=$(echo "$DATABASE_URL" | sed -n 's/.*\/\([^?]*\).*/\1/p')
 else
-    DB_USER="${POSTGRES_USER:-fastembed}"
+    DB_USER="${POSTGRES_USER:-smally}"
     DB_PASS="${POSTGRES_PASSWORD:-}"
     DB_HOST="${DB_HOST:-localhost}"
     DB_PORT="${DB_PORT:-5432}"
-    DB_NAME="${POSTGRES_DB:-fastembed}"
+    DB_NAME="${POSTGRES_DB:-smally}"
 fi
 
 # Check if we can connect

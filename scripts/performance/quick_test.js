@@ -86,7 +86,7 @@ export function handleSummary(data) {
 
   // Build custom summary
   const summary = `
-FastEmbed Quick Load Test (k6)
+Smally Quick Load Test (k6)
 ================================
 Configuration:
   API URL:        ${API_URL}

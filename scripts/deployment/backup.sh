@@ -1,14 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-# FastEmbed Database Backup Script
+# Smally Database Backup Script
 # Creates a backup of PostgreSQL database
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BACKUP_DIR="$PROJECT_ROOT/backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="fastembed_backup_${TIMESTAMP}.sql.gz"
+BACKUP_FILE="smally_backup_${TIMESTAMP}.sql.gz"
 
 # Colors
 GREEN='\033[0;32m'
@@ -43,7 +43,7 @@ if [ $? -eq 0 ]; then
 
     # Keep only last 30 backups
     cd "$BACKUP_DIR"
-    ls -t fastembed_backup_*.sql.gz | tail -n +31 | xargs -r rm
+    ls -t smally_backup_*.sql.gz | tail -n +31 | xargs -r rm
     log_info "Old backups cleaned up (keeping last 30)"
 else
     log_error "Backup failed"

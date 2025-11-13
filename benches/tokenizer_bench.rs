@@ -13,7 +13,7 @@ fn bench_tokenizer_encode(c: &mut Criterion) {
         return;
     }
 
-    let tokenizer = match embed_rs::inference::tokenizer::Tokenizer::new(model_path) {
+    let tokenizer = match api::inference::tokenizer::Tokenizer::new(model_path) {
         Ok(t) => t,
         Err(e) => {
             eprintln!("Failed to load tokenizer: {}. Skipping benchmark.", e);
@@ -64,7 +64,7 @@ fn bench_tokenizer_tokenize(c: &mut Criterion) {
         return;
     }
 
-    let tokenizer = match embed_rs::inference::tokenizer::Tokenizer::new(model_path) {
+    let tokenizer = match api::inference::tokenizer::Tokenizer::new(model_path) {
         Ok(t) => t,
         Err(e) => {
             eprintln!("Failed to load tokenizer: {}. Skipping benchmark.", e);
