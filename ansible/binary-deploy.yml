@@ -1,0 +1,128 @@
+---
+# Binary deployment playbook - builds locally, deploys pre-built binaries
+# Much faster than building on remote server
+
+- name: Build and Deploy Smally API (Binary Mode)
+  hosts: all
+  become: yes
+  vars:
+    smally_user: smally
+    smally_app_dir: "/home/{{ smally_user }}/smally-api"
+    local_dist_dir: "{{ playbook_dir }}/../dist"
+
+  tasks:
+    - name: Build binaries locally
+      delegate_to: localhost
+      become: no
+      block:
+        - name: Capture git information
+          shell: |
+            echo "GIT_HASH=$(git rev-parse --short HEAD)"
+            echo "GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)"
+            echo "GIT_DATE=$(git log -1 --format=%ci)"
+            echo "GIT_DIRTY=$(git status --porcelain | wc -l | awk '{if ($1 > 0) print \"true\"; else print \"false\"}')"
+            echo "BUILD_TIMESTAMP=$(date -u +\"%Y-%m-%dT%H:%M:%S%z\")"
+          args:
+            chdir: "{{ playbook_dir }}/.."
+          register: git_info
+          changed_when: false
+
+        - name: Set git facts
+          set_fact:
+            git_vars: "{{ git_info.stdout | regex_findall('([A-Z_]+)=(.+)') | items2dict }}"
+
+        - name: Build Docker image with binaries
+          command: >
+            docker build
+            --target builder
+            --build-arg GIT_HASH="{{ git_vars.GIT_HASH }}"
+            --build-arg GIT_BRANCH="{{ git_vars.GIT_BRANCH }}"
+            --build-arg GIT_DATE="{{ git_vars.GIT_DATE }}"
+            --build-arg GIT_DIRTY="{{ git_vars.GIT_DIRTY }}"
+            --build-arg BUILD_TIMESTAMP="{{ git_vars.BUILD_TIMESTAMP }}"
+            --build-arg RUST_VERSION="1.91.0"
+            -t smally-builder:latest
+            -f Dockerfile
+            .
+          args:
+            chdir: "{{ playbook_dir }}/.."
+
+        - name: Create dist directory
+          file:
+            path: "{{ local_dist_dir }}"
+            state: directory
+
+        - name: Extract binaries from Docker image
+          shell: |
+            docker create --name smally-builder-temp smally-builder:latest
+            docker cp smally-builder-temp:/build/target/release/api {{ local_dist_dir }}/api
+            docker cp smally-builder-temp:/build/target/release/create_api_key {{ local_dist_dir }}/create_api_key
+            docker rm smally-builder-temp
+          args:
+            chdir: "{{ playbook_dir }}/.."
+
+        - name: Make binaries executable
+          file:
+            path: "{{ local_dist_dir }}/{{ item }}"
+            mode: '0755'
+          loop:
+            - api
+            - create_api_key
+
+    - name: Stop smally service
+      systemd:
+        name: smally
+        state: stopped
+      ignore_errors: yes
+
+    - name: Upload binaries to server
+      copy:
+        src: "{{ local_dist_dir }}/{{ item }}"
+        dest: "{{ smally_app_dir }}/{{ item }}"
+        owner: "{{ smally_user }}"
+        group: "{{ smally_user }}"
+        mode: '0755'
+      loop:
+        - api
+        - create_api_key
+
+    - name: Upload scripts
+      synchronize:
+        src: "{{ playbook_dir }}/../scripts/"
+        dest: "{{ smally_app_dir }}/scripts/"
+        delete: no
+        rsync_opts:
+          - "--chmod=D755,F755"
+          - "--exclude=*.sh~"
+
+    - name: Ensure scripts are executable
+      file:
+        path: "{{ smally_app_dir }}/scripts"
+        state: directory
+        recurse: yes
+        mode: 'u+x,g+x,o+x'
+      when: item is match(".*\.sh$")
+      with_fileglob:
+        - "{{ smally_app_dir }}/scripts/**/*.sh"
+
+    - name: Start smally service
+      systemd:
+        name: smally
+        state: started
+        daemon_reload: yes
+
+    - name: Wait for API to be healthy
+      uri:
+        url: "http://localhost:8000/health"
+        status_code: 200
+      register: health_check
+      until: health_check.status == 200
+      retries: 30
+      delay: 2
+
+    - name: Display deployment information
+      debug:
+        msg:
+          - "Smally API deployed successfully!"
+          - "API URL: https://{{ ansible_host }}/v1"
+          - "Check health: curl http://localhost:8000/health"
