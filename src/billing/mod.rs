@@ -31,6 +31,9 @@ pub struct UsageBuffer {
 // Global usage buffer instance
 static USAGE_BUFFER: once_cell::sync::OnceCell<Arc<UsageBuffer>> = once_cell::sync::OnceCell::new();
 
+// Global Redis connection for rate limiting
+static REDIS_CONNECTION: once_cell::sync::OnceCell<ConnectionManager> = once_cell::sync::OnceCell::new();
+
 impl UsageBuffer {
     pub fn new(pool: &'static PgPool) -> Self {
         Self {
@@ -116,6 +119,23 @@ pub fn get_usage_buffer() -> &'static Arc<UsageBuffer> {
     USAGE_BUFFER.get().expect("Usage buffer not initialized")
 }
 
+// Initialize global Redis connection for rate limiting
+pub async fn init_redis() -> Result<()> {
+    let settings = config::get_settings();
+    let redis_client = redis::Client::open(settings.redis_url.as_str())?;
+    let conn = ConnectionManager::new(redis_client).await?;
+    REDIS_CONNECTION
+        .set(conn)
+        .map_err(|_| anyhow::anyhow!("Redis connection already initialized"))?;
+    info!("Redis connection for billing initialized");
+    Ok(())
+}
+
+// Get global Redis connection
+fn get_redis_connection() -> &'static ConnectionManager {
+    REDIS_CONNECTION.get().expect("Redis connection not initialized")
+}
+
 // Check rate limit for free tier users (paid tiers are unlimited)
 pub async fn check_rate_limit(
     pool: &PgPool,
@@ -151,9 +171,8 @@ async fn check_rate_limit_redis(
 ) -> Result<(bool, HashMap<String, String>)> {
     let settings = config::get_settings();
 
-    // Get Redis connection
-    let redis_client = redis::Client::open(settings.redis_url.as_str())?;
-    let mut conn = ConnectionManager::new(redis_client).await?;
+    // Use global Redis connection (reused across requests)
+    let mut conn = get_redis_connection().clone();
 
     // Get current month for key
     let now = Utc::now();
@@ -299,11 +318,8 @@ pub async fn increment_usage(
 
 // Increment Redis counter for rate limiting
 async fn increment_redis_counter(user_id: i64, api_key_id: i64) -> Result<()> {
-    let settings = config::get_settings();
-
-    // Get Redis connection
-    let redis_client = redis::Client::open(settings.redis_url.as_str())?;
-    let mut conn = ConnectionManager::new(redis_client).await?;
+    // Use global Redis connection (reused across requests)
+    let mut conn = get_redis_connection().clone();
 
     // Get current month for key
     let now = Utc::now();

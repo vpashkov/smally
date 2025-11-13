@@ -53,6 +53,11 @@ async fn main() -> anyhow::Result<()> {
     cache::init_cache().await?;
     info!("Redis connected");
 
+    // Initialize Redis connection for billing (rate limiting)
+    info!("Initializing Redis connection for billing...");
+    billing::init_redis().await?;
+    info!("Redis connection for billing initialized");
+
     // Initialize usage buffer with background flush task
     info!("Initializing usage buffer...");
     billing::init_usage_buffer(database::get_db())?;
