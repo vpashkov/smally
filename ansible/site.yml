@@ -285,6 +285,33 @@
       register: env_file_updated
       notify: restart smally
 
+    - name: Check if database is already initialized
+      stat:
+        path: /home/{{ smally_user }}/.smally_db_initialized
+      register: db_initialized
+
+    - name: Initialize database schema
+      shell: |
+        export DATABASE_URL="postgresql://{{ postgres_user }}:{{ postgres_password }}@localhost/{{ postgres_db }}"
+        {{ smally_app_dir }}/scripts/init_db.sh admin@smally.local scale > /tmp/init_db.log 2>&1
+      become_user: "{{ smally_user }}"
+      when: not db_initialized.stat.exists
+      register: db_init
+      ignore_errors: yes
+
+    - name: Mark database as initialized
+      file:
+        path: /home/{{ smally_user }}/.smally_db_initialized
+        state: touch
+        owner: "{{ smally_user }}"
+        group: "{{ smally_user }}"
+      when: db_init is defined and db_init.rc == 0
+
+    - name: Display database initialization log on failure
+      debug:
+        msg: "Database initialization failed. Check /tmp/init_db.log on server."
+      when: db_init is defined and db_init.failed
+
     - name: Upload systemd service file
       copy:
         src: "{{ playbook_dir }}/../systemd/smally.service"
