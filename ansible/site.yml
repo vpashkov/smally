@@ -131,7 +131,7 @@
     - name: Grant privileges to PostgreSQL user
       become_user: postgres
       postgresql_privs:
-        database: "{{ postgres_db }}"
+        db: "{{ postgres_db }}"
         role: "{{ postgres_user }}"
         type: database
         privs: ALL
