@@ -1,5 +1,9 @@
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
+use coset::{
+    cwt::{ClaimsSetBuilder, Timestamp},
+    CborSerializable, CoseSign1Builder, HeaderBuilder, iana,
+};
 use dashmap::DashMap;
 use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
@@ -94,18 +98,12 @@ impl TokenClaims {
     }
 }
 
-/// Maximum allowed CBOR payload size (1KB - reasonable for token data)
-const MAX_CBOR_SIZE: usize = 1024;
+/// Maximum allowed CBOR payload size (2KB - reasonable for CWT ClaimsSet)
+const MAX_CBOR_SIZE: usize = 2048;
 
-/// Domain separation string for Ed25519 signatures
-const SIGNING_DOMAIN: &[u8] = b"embed-api-token-v1";
-
-/// Expected fixed CBOR size for TokenData (all fields are now fixed-length)
-const EXPECTED_CBOR_SIZE: usize = 52; // Approximate, will validate at runtime
-
-/// Sign token data with Ed25519 (direct signing, compact format)
-/// Format: base64(version(1) + cbor_data(fixed) + signature(64))
-/// Fixed-length CBOR eliminates need for length field
+/// Sign token data with Ed25519 using COSET CWT (CBOR Web Token)
+/// Format: base64(COSE_Sign1(CWT ClaimsSet))
+/// Uses RFC 8392 (CWT) and RFC 8152 (COSE) standards
 pub fn sign_token_direct(
     token_data: &TokenData,
     signing_key: &ed25519_dalek::SigningKey,
@@ -119,91 +117,183 @@ pub fn sign_token_direct(
         return Err(anyhow!("Invalid expiration: timestamp too far in future"));
     }
 
-    // Encode to CBOR (should be fixed-length since all fields are fixed-size)
-    let mut cbor_bytes = Vec::new();
-    ciborium::into_writer(token_data, &mut cbor_bytes)?;
+    // Build CWT ClaimsSet with standard and custom claims
+    // Use text claims for compact encoding (single-letter keys)
+    let claims = ClaimsSetBuilder::new()
+        .subject(token_data.user_id.to_string())
+        .expiration_time(Timestamp::WholeSeconds(token_data.expiration))
+        .text_claim("k".to_string(), ciborium::value::Value::Text(token_data.key_id.to_string()))
+        .text_claim("t".to_string(), ciborium::value::Value::Integer((token_data.tier as i64).into()))
+        .text_claim("m".to_string(), ciborium::value::Value::Integer((token_data.max_tokens as i64).into()))
+        .text_claim("q".to_string(), ciborium::value::Value::Integer((token_data.monthly_quota as i64).into()))
+        .build();
 
-    // Validate CBOR size is reasonable and within bounds
-    if cbor_bytes.len() > MAX_CBOR_SIZE {
+    // Serialize ClaimsSet to CBOR
+    let claims_bytes = claims.to_vec()
+        .map_err(|e| anyhow!("Failed to serialize CWT ClaimsSet: {}", e))?;
+
+    // Validate CBOR size is reasonable
+    if claims_bytes.len() > MAX_CBOR_SIZE {
         return Err(anyhow!(
             "Token data too large: {} bytes exceeds maximum of {} bytes",
-            cbor_bytes.len(),
+            claims_bytes.len(),
             MAX_CBOR_SIZE
         ));
     }
 
-    // Prepare data to sign: domain + version + CBOR (no length field needed)
-    const VERSION: u8 = 1;
+    // Create COSE protected header with EdDSA algorithm
+    let protected = HeaderBuilder::new()
+        .algorithm(iana::Algorithm::EdDSA)
+        .build();
 
-    let mut data_to_sign = Vec::with_capacity(SIGNING_DOMAIN.len() + 1 + cbor_bytes.len());
-    data_to_sign.extend_from_slice(SIGNING_DOMAIN); // Domain separation
-    data_to_sign.push(VERSION);
-    data_to_sign.extend_from_slice(&cbor_bytes);
+    // Create COSE_Sign1 structure with ClaimsSet as payload
+    let mut sign1 = CoseSign1Builder::new()
+        .protected(protected)
+        .payload(claims_bytes)
+        .build();
 
-    // Sign with Ed25519
+    // Sign with Ed25519 using COSE Sig_structure
     use ed25519_dalek::Signer;
-    let signature = signing_key.sign(&data_to_sign);
+    let tbs = sign1.tbs_data(b"Signature1");
+    let signature = signing_key.sign(&tbs);
+    sign1.signature = signature.to_bytes().to_vec();
 
-    // Build final token: version + cbor + signature (domain NOT included in token)
-    let mut token_bytes = Vec::with_capacity(1 + cbor_bytes.len() + 64);
-    token_bytes.push(VERSION);
-    token_bytes.extend_from_slice(&cbor_bytes);
-    token_bytes.extend_from_slice(&signature.to_bytes());
+    // Serialize COSE_Sign1 to CBOR
+    let cwt_bytes = sign1.to_vec()
+        .map_err(|e| anyhow!("Failed to serialize COSE_Sign1: {}", e))?;
 
-    // Base64 encode (no prefix needed - version is first byte after decoding)
+    // Base64 encode the CWT token
     Ok(base64::Engine::encode(
         &base64::engine::general_purpose::STANDARD,
-        &token_bytes,
+        &cwt_bytes,
     ))
 }
 
-/// Verify and decode directly signed token
-/// Validates structure, signature, and decodes payload with comprehensive security checks
+/// Verify and decode CWT token using COSET
+/// Validates COSE structure, Ed25519 signature, and decodes CWT ClaimsSet
 pub fn verify_token_direct(
     token: &str,
     verifying_key: &ed25519_dalek::VerifyingKey,
 ) -> Result<TokenClaims, anyhow::Error> {
-    // Decode base64 (no prefix - version is embedded as first byte)
-    let token_bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, token)?;
+    // Decode base64
+    let cwt_bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, token)?;
 
-    // Minimum size: version(1) + cbor(min 10) + signature(64) = 75 bytes
-    if token_bytes.len() < 75 {
-        return Err(anyhow!("Token too short"));
+    // Validate size constraints
+    if cwt_bytes.len() < 100 {
+        return Err(anyhow!("Token too short: minimum CWT size is ~100 bytes"));
     }
 
-    // Maximum size with fixed CBOR: version(1) + cbor(MAX_CBOR_SIZE) + signature(64)
-    let max_len = 1 + MAX_CBOR_SIZE + 64;
-    if token_bytes.len() > max_len {
+    let max_len = MAX_CBOR_SIZE + 200; // ClaimsSet + COSE overhead
+    if cwt_bytes.len() > max_len {
         return Err(anyhow!(
             "Token too large: {} bytes exceeds maximum",
-            token_bytes.len()
+            cwt_bytes.len()
         ));
     }
 
-    // Extract version
-    let version = token_bytes[0];
-    if version != 1 {
-        return Err(anyhow!("Unsupported token version: {}", version));
+    // Deserialize COSE_Sign1 from CBOR
+    let sign1 = coset::CoseSign1::from_slice(&cwt_bytes)
+        .map_err(|e| anyhow!("Invalid COSE_Sign1 structure: {}", e))?;
+
+    // Verify algorithm is EdDSA
+    let protected = &sign1.protected.header;
+    if protected.alg != Some(coset::Algorithm::Assigned(iana::Algorithm::EdDSA)) {
+        return Err(anyhow!("Invalid algorithm: expected EdDSA"));
     }
 
-    // Extract components: signature is always last 64 bytes
-    let signature_start = token_bytes.len() - 64;
-    let token_data_bytes = &token_bytes[..signature_start]; // version + cbor
-    let signature_bytes = &token_bytes[signature_start..];
-    let cbor_bytes = &token_bytes[1..signature_start]; // Skip version byte
-
-    // Reconstruct the signed data: domain + version + cbor
-    let mut signed_data = Vec::with_capacity(SIGNING_DOMAIN.len() + token_data_bytes.len());
-    signed_data.extend_from_slice(SIGNING_DOMAIN); // Add domain separation
-    signed_data.extend_from_slice(token_data_bytes); // Add token data (version + cbor)
-
-    // Verify signature BEFORE deserializing CBOR (defense in depth)
+    // Verify signature using COSE Sig_structure
     use ed25519_dalek::Verifier;
-    let signature = ed25519_dalek::Signature::from_bytes(signature_bytes.try_into()?);
-    verifying_key.verify(&signed_data, &signature)?;
+    let tbs = sign1.tbs_data(b"Signature1");
+    let signature = ed25519_dalek::Signature::from_slice(&sign1.signature)
+        .map_err(|e| anyhow!("Invalid signature format: {}", e))?;
 
-    // Only decode CBOR after signature verification passes
-    TokenClaims::from_cbor_bytes(cbor_bytes)
+    verifying_key.verify(&tbs, &signature)
+        .map_err(|e| anyhow!("Signature verification failed: {}", e))?;
+
+    // Extract and deserialize CWT ClaimsSet from payload
+    let payload = sign1.payload.as_ref()
+        .ok_or_else(|| anyhow!("Missing CWT payload"))?;
+
+    let claims = coset::cwt::ClaimsSet::from_slice(payload)
+        .map_err(|e| anyhow!("Invalid CWT ClaimsSet: {}", e))?;
+
+    // Extract standard claims
+    let user_id: i64 = claims.subject
+        .as_ref()
+        .ok_or_else(|| anyhow!("Missing subject claim"))?
+        .parse()
+        .map_err(|e| anyhow!("Invalid subject (user_id): {}", e))?;
+
+    let expiration = match claims.expiration_time {
+        Some(Timestamp::WholeSeconds(secs)) => secs,
+        Some(Timestamp::FractionalSeconds(secs)) => secs as i64,
+        None => return Err(anyhow!("Missing expiration_time claim")),
+    };
+
+    // Extract custom text claims
+    let mut key_id_str = None;
+    let mut tier_value = None;
+    let mut max_tokens_value = None;
+    let mut monthly_quota_value = None;
+
+    for (name, value) in &claims.rest {
+        match name {
+            coset::cwt::ClaimName::Text(key) if key == "k" => {
+                if let ciborium::value::Value::Text(s) = value {
+                    key_id_str = Some(s.clone());
+                }
+            }
+            coset::cwt::ClaimName::Text(key) if key == "t" => {
+                if let ciborium::value::Value::Integer(i) = value {
+                    // Convert ciborium::Integer to i128, then to u8
+                    let val: i128 = (*i).into();
+                    tier_value = Some(val as u8);
+                }
+            }
+            coset::cwt::ClaimName::Text(key) if key == "m" => {
+                if let ciborium::value::Value::Integer(i) = value {
+                    // Convert ciborium::Integer to i128, then to i32
+                    let val: i128 = (*i).into();
+                    max_tokens_value = Some(val as i32);
+                }
+            }
+            coset::cwt::ClaimName::Text(key) if key == "q" => {
+                if let ciborium::value::Value::Integer(i) = value {
+                    // Convert ciborium::Integer to i128, then to i32
+                    let val: i128 = (*i).into();
+                    monthly_quota_value = Some(val as i32);
+                }
+            }
+            _ => {} // Ignore unknown claims
+        }
+    }
+
+    // Reconstruct TokenData from extracted claims
+    let key_id = key_id_str
+        .ok_or_else(|| anyhow!("Missing 'k' (key_id) claim"))?;
+    let key_id = Uuid::parse_str(&key_id)
+        .map_err(|e| anyhow!("Invalid key_id UUID: {}", e))?;
+
+    let tier = TierType::from_u8(tier_value
+        .ok_or_else(|| anyhow!("Missing 't' (tier) claim"))?)
+        .map_err(|e| anyhow!("Invalid tier value: {}", e))?;
+
+    let max_tokens = max_tokens_value
+        .ok_or_else(|| anyhow!("Missing 'm' (max_tokens) claim"))?;
+
+    let monthly_quota = monthly_quota_value
+        .ok_or_else(|| anyhow!("Missing 'q' (monthly_quota) claim"))?;
+
+    let token_data = TokenData {
+        expiration,
+        user_id,
+        key_id,
+        tier,
+        max_tokens,
+        monthly_quota,
+    };
+
+    Ok(TokenClaims::from_token_data(token_data))
 }
 
 // Keep TokenLimits for compatibility with billing module

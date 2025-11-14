@@ -9,7 +9,9 @@ fn main() {
     // Get private key from environment or args
     let private_key_hex = env::var("TOKEN_PRIVATE_KEY").unwrap_or_else(|_| {
         eprintln!("Error: TOKEN_PRIVATE_KEY environment variable not set");
-        eprintln!("Usage: TOKEN_PRIVATE_KEY=<hex> cargo run --bin create_token <user_id> <tier> [key_id]");
+        eprintln!(
+            "Usage: TOKEN_PRIVATE_KEY=<hex> cargo run --bin create_token <user_id> <tier> [key_id]"
+        );
         std::process::exit(1);
     });
 
@@ -18,7 +20,9 @@ fn main() {
     if args.len() < 3 {
         eprintln!("Usage: cargo run --bin create_token <user_id> <tier> [key_id]");
         eprintln!("Example: cargo run --bin create_token 123 free");
-        eprintln!("         cargo run --bin create_token 123 free 018d1234-5678-7abc-9def-0123456789ab");
+        eprintln!(
+            "         cargo run --bin create_token 123 free 018d1234-5678-7abc-9def-0123456789ab"
+        );
         eprintln!("\nTiers: free, pro, scale");
         eprintln!("\nIf key_id is not provided, a new UUIDv7 will be generated.");
         std::process::exit(1);
