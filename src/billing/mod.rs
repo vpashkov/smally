@@ -476,7 +476,7 @@ async fn increment_redis_counter_simple(user_id: i64) -> Result<()> {
 }
 
 /// Hash key_id to get a deterministic API key ID
-fn hash_key_id(key_id: &str) -> i64 {
+fn hash_key_id(key_id: uuid::Uuid) -> i64 {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
 

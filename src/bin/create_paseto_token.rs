@@ -3,6 +3,7 @@ use api::models::TierType;
 use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
 use std::env;
+use uuid::Uuid;
 
 fn main() {
     // Get private key from environment or args
@@ -14,10 +15,12 @@ fn main() {
 
     // Parse command line arguments
     let args: Vec<String> = env::args().collect();
-    if args.len() < 4 {
-        eprintln!("Usage: cargo run --bin create_paseto_token <user_id> <tier> <key_id>");
-        eprintln!("Example: cargo run --bin create_paseto_token 123 free my-api-key-1");
+    if args.len() < 3 {
+        eprintln!("Usage: cargo run --bin create_paseto_token <user_id> <tier> [key_id]");
+        eprintln!("Example: cargo run --bin create_paseto_token 123 free");
+        eprintln!("         cargo run --bin create_paseto_token 123 free 018d1234-5678-7abc-9def-0123456789ab");
         eprintln!("\nTiers: free, pro, scale");
+        eprintln!("\nIf key_id is not provided, a new UUIDv7 will be generated.");
         std::process::exit(1);
     }
 
@@ -27,7 +30,19 @@ fn main() {
     });
 
     let tier_input = &args[2];
-    let key_id = &args[3];
+
+    // Generate UUIDv7 (time-ordered) or parse provided UUID
+    let key_id = if args.len() >= 4 {
+        // Parse provided UUID
+        Uuid::parse_str(&args[3]).unwrap_or_else(|_| {
+            eprintln!("Error: Invalid UUID format");
+            eprintln!("Example: 018d1234-5678-7abc-9def-0123456789ab");
+            std::process::exit(1);
+        })
+    } else {
+        // Generate new UUIDv7 (time-ordered, database-friendly)
+        Uuid::now_v7()
+    };
 
     // Validate tier and convert to TierType
     let (tier_name, tier_value) = match tier_input.to_lowercase().as_str() {
@@ -67,7 +82,7 @@ fn main() {
     let token_data = TokenData {
         e: exp_timestamp,
         u: user_id,
-        k: key_id.to_string(),
+        k: key_id,
         t: tier_value,
         m: max_tokens as i32,
         q: monthly_quota as i32,

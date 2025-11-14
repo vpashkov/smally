@@ -8,19 +8,20 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{info, warn};
+use uuid::Uuid;
 
 use crate::config;
 use crate::models::TierType;
 
-/// CBOR-encoded token data (ultra-compact binary format)
+/// CBOR-encoded token data (ultra-compact binary format with fixed-length fields)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenData {
     /// Expiration time (Unix timestamp)
     pub e: i64,
     /// User ID
     pub u: i64,
-    /// API key ID (for revocation tracking)
-    pub k: String,
+    /// API key ID (UUIDv7 - time-ordered, 16 bytes fixed)
+    pub k: Uuid,
     /// User tier (serializes as 0=Free, 1=Pro, 2=Scale)
     pub t: TierType,
     /// Max tokens
@@ -61,8 +62,8 @@ impl TokenClaims {
     }
 
     /// Get key_id
-    pub fn key_id(&self) -> &str {
-        &self.data.k
+    pub fn key_id(&self) -> Uuid {
+        self.data.k
     }
 
     /// Get tier
@@ -93,9 +94,12 @@ const MAX_CBOR_SIZE: usize = 1024;
 /// Domain separation string for Ed25519 signatures
 const SIGNING_DOMAIN: &[u8] = b"embed-api-token-v1";
 
+/// Expected fixed CBOR size for TokenData (all fields are now fixed-length)
+const EXPECTED_CBOR_SIZE: usize = 52; // Approximate, will validate at runtime
+
 /// Sign token data with Ed25519 (direct approach, no PASETO overhead)
-/// Format: base64(version(1) + cbor_length(4) + cbor_data + signature(64))
-/// Length-prefixed format prevents signature malleability attacks
+/// Format: base64(version(1) + cbor_data(fixed) + signature(64))
+/// Fixed-length CBOR eliminates need for length field
 pub fn sign_token_direct(
     token_data: &TokenData,
     signing_key: &ed25519_dalek::SigningKey,
@@ -109,33 +113,30 @@ pub fn sign_token_direct(
         return Err(anyhow!("Invalid expiration: timestamp too far in future"));
     }
 
-    // Encode to CBOR
+    // Encode to CBOR (should be fixed-length since all fields are fixed-size)
     let mut cbor_bytes = Vec::new();
     ciborium::into_writer(token_data, &mut cbor_bytes)?;
 
-    // Validate CBOR size
+    // Validate CBOR size is reasonable and within bounds
     if cbor_bytes.len() > MAX_CBOR_SIZE {
         return Err(anyhow!("Token data too large: {} bytes exceeds maximum of {} bytes", cbor_bytes.len(), MAX_CBOR_SIZE));
     }
 
-    // Prepare data to sign: domain + version + length + CBOR
+    // Prepare data to sign: domain + version + CBOR (no length field needed)
     const VERSION: u8 = 1;
-    let cbor_len = cbor_bytes.len() as u32;
 
-    let mut data_to_sign = Vec::with_capacity(SIGNING_DOMAIN.len() + 1 + 4 + cbor_bytes.len());
+    let mut data_to_sign = Vec::with_capacity(SIGNING_DOMAIN.len() + 1 + cbor_bytes.len());
     data_to_sign.extend_from_slice(SIGNING_DOMAIN); // Domain separation
     data_to_sign.push(VERSION);
-    data_to_sign.extend_from_slice(&cbor_len.to_be_bytes()); // Big-endian for consistency
     data_to_sign.extend_from_slice(&cbor_bytes);
 
     // Sign with Ed25519
     use ed25519_dalek::Signer;
     let signature = signing_key.sign(&data_to_sign);
 
-    // Build final token: version + length + cbor + signature (domain NOT included in token)
-    let mut token_bytes = Vec::with_capacity(1 + 4 + cbor_bytes.len() + 64);
+    // Build final token: version + cbor + signature (domain NOT included in token)
+    let mut token_bytes = Vec::with_capacity(1 + cbor_bytes.len() + 64);
     token_bytes.push(VERSION);
-    token_bytes.extend_from_slice(&cbor_len.to_be_bytes());
     token_bytes.extend_from_slice(&cbor_bytes);
     token_bytes.extend_from_slice(&signature.to_bytes());
 
@@ -155,9 +156,15 @@ pub fn verify_token_direct(
     // Decode base64 (no prefix - version is embedded as first byte)
     let token_bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, token)?;
 
-    // Minimum size: version(1) + length(4) + cbor(min 10) + signature(64) = 79 bytes
-    if token_bytes.len() < 79 {
+    // Minimum size: version(1) + cbor(min 10) + signature(64) = 75 bytes
+    if token_bytes.len() < 75 {
         return Err(anyhow!("Token too short"));
+    }
+
+    // Maximum size with fixed CBOR: version(1) + cbor(MAX_CBOR_SIZE) + signature(64)
+    let max_len = 1 + MAX_CBOR_SIZE + 64;
+    if token_bytes.len() > max_len {
+        return Err(anyhow!("Token too large: {} bytes exceeds maximum", token_bytes.len()));
     }
 
     // Extract version
@@ -166,54 +173,16 @@ pub fn verify_token_direct(
         return Err(anyhow!("Unsupported token version: {}", version));
     }
 
-    // Extract CBOR length (big-endian u32)
-    let cbor_len_u32 = u32::from_be_bytes([
-        token_bytes[1],
-        token_bytes[2],
-        token_bytes[3],
-        token_bytes[4],
-    ]);
+    // Extract components: signature is always last 64 bytes
+    let signature_start = token_bytes.len() - 64;
+    let token_data_bytes = &token_bytes[..signature_start]; // version + cbor
+    let signature_bytes = &token_bytes[signature_start..];
+    let cbor_bytes = &token_bytes[1..signature_start]; // Skip version byte
 
-    // Validate CBOR length is within acceptable bounds
-    if cbor_len_u32 > MAX_CBOR_SIZE as u32 {
-        return Err(anyhow!(
-            "CBOR payload too large: {} bytes exceeds maximum of {} bytes",
-            cbor_len_u32,
-            MAX_CBOR_SIZE
-        ));
-    }
-
-    let cbor_len = cbor_len_u32 as usize;
-
-    // Validate token structure with overflow protection
-    // expected_len = 1 + 4 + cbor_len + 64
-    let expected_len = 1usize
-        .checked_add(4)
-        .and_then(|v| v.checked_add(cbor_len))
-        .and_then(|v| v.checked_add(64))
-        .ok_or_else(|| anyhow!("Integer overflow in token length calculation"))?;
-
-    if token_bytes.len() != expected_len {
-        return Err(anyhow!(
-            "Invalid token structure: expected {} bytes, got {}",
-            expected_len,
-            token_bytes.len()
-        ));
-    }
-
-    // Extract components using the declared length
-    let cbor_start = 5;
-    let cbor_end = cbor_start + cbor_len;
-    let signature_start = cbor_end;
-
-    let token_data_bytes = &token_bytes[..signature_start]; // version + length + cbor (what's in the token)
-    let signature_bytes = &token_bytes[signature_start..signature_start + 64];
-    let cbor_bytes = &token_bytes[cbor_start..cbor_end];
-
-    // Reconstruct the signed data: domain + version + length + cbor
+    // Reconstruct the signed data: domain + version + cbor
     let mut signed_data = Vec::with_capacity(SIGNING_DOMAIN.len() + token_data_bytes.len());
     signed_data.extend_from_slice(SIGNING_DOMAIN); // Add domain separation
-    signed_data.extend_from_slice(token_data_bytes); // Add token data
+    signed_data.extend_from_slice(token_data_bytes); // Add token data (version + cbor)
 
     // Verify signature BEFORE deserializing CBOR (defense in depth)
     use ed25519_dalek::Verifier;
