@@ -21,8 +21,8 @@ pub struct TokenData {
     pub u: i64,
     /// API key ID (for revocation tracking)
     pub k: String,
-    /// User tier (0=Free, 1=Pro, 2=Scale)
-    pub t: String,
+    /// User tier (serializes as 0=Free, 1=Pro, 2=Scale)
+    pub t: TierType,
     /// Max tokens
     pub m: i32,
     /// Monthly quota
@@ -67,7 +67,7 @@ impl TokenClaims {
 
     /// Get tier
     pub fn tier(&self) -> Result<TierType, anyhow::Error> {
-        Ok(serde_json::from_value(serde_json::Value::String(self.data.t.clone()))?)
+        Ok(self.data.t)
     }
 
     /// Get expiration

@@ -1,4 +1,5 @@
 use api::auth::{sign_token_direct, TokenData};
+use api::models::TierType;
 use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
 use std::env;
@@ -28,11 +29,11 @@ fn main() {
     let tier_input = &args[2];
     let key_id = &args[3];
 
-    // Validate and capitalize tier
-    let tier = match tier_input.to_lowercase().as_str() {
-        "free" => "Free",
-        "pro" => "Pro",
-        "scale" => "Scale",
+    // Validate tier and convert to TierType
+    let (tier_name, tier_value) = match tier_input.to_lowercase().as_str() {
+        "free" => ("Free", TierType::Free),
+        "pro" => ("Pro", TierType::Pro),
+        "scale" => ("Scale", TierType::Scale),
         _ => {
             eprintln!("Error: tier must be one of: free, pro, scale");
             std::process::exit(1);
@@ -52,11 +53,10 @@ fn main() {
     }));
 
     // Determine limits based on tier
-    let (max_tokens, monthly_quota) = match tier {
-        "Free" => (128, 20_000),
-        "Pro" => (8192, 100_000),
-        "Scale" => (8192, 2_000_000),
-        _ => unreachable!(),
+    let (max_tokens, monthly_quota) = match tier_value {
+        TierType::Free => (128, 20_000),
+        TierType::Pro => (8192, 100_000),
+        TierType::Scale => (8192, 2_000_000),
     };
 
     // Create token claims (long-lived: 5 years)
@@ -68,7 +68,7 @@ fn main() {
         e: exp_timestamp,
         u: user_id,
         k: key_id.to_string(),
-        t: tier.to_string(),
+        t: tier_value,
         m: max_tokens as i32,
         q: monthly_quota as i32,
     };
@@ -78,7 +78,7 @@ fn main() {
 
     println!("\n=== Direct Signed Token Generated ===\n");
     println!("User ID: {}", user_id);
-    println!("Tier: {}", tier);
+    println!("Tier: {}", tier_name);
     println!("Key ID: {}", key_id);
     println!("Expiration: {} (5 years)", exp.format("%Y-%m-%d"));
     println!("\nToken:");
