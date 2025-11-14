@@ -17,17 +17,23 @@ use crate::models::TierType;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenData {
     /// Expiration time (Unix timestamp)
-    pub e: i64,
+    #[serde(rename = "e")]
+    pub expiration: i64,
     /// User ID
-    pub u: i64,
+    #[serde(rename = "u")]
+    pub user_id: i64,
     /// API key ID (UUIDv7 - time-ordered, 16 bytes fixed)
-    pub k: Uuid,
+    #[serde(rename = "k")]
+    pub key_id: Uuid,
     /// User tier (serializes as 0=Free, 1=Pro, 2=Scale)
-    pub t: TierType,
+    #[serde(rename = "t")]
+    pub tier: TierType,
     /// Max tokens
-    pub m: i32,
+    #[serde(rename = "m")]
+    pub max_tokens: i32,
     /// Monthly quota
-    pub q: i32,
+    #[serde(rename = "q")]
+    pub monthly_quota: i32,
 }
 
 /// Token claims with CBOR-encoded data
@@ -58,33 +64,33 @@ impl TokenClaims {
 
     /// Get user_id
     pub fn user_id(&self) -> i64 {
-        self.data.u
+        self.data.user_id
     }
 
     /// Get key_id
     pub fn key_id(&self) -> Uuid {
-        self.data.k
+        self.data.key_id
     }
 
     /// Get tier
     pub fn tier(&self) -> Result<TierType, anyhow::Error> {
-        Ok(self.data.t)
+        Ok(self.data.tier)
     }
 
     /// Get expiration
     pub fn exp(&self) -> Result<DateTime<Utc>, anyhow::Error> {
-        Ok(DateTime::from_timestamp(self.data.e, 0)
+        Ok(DateTime::from_timestamp(self.data.expiration, 0)
             .ok_or_else(|| anyhow::anyhow!("Invalid timestamp"))?)
     }
 
     /// Get max_tokens
     pub fn max_tokens(&self) -> usize {
-        self.data.m as usize
+        self.data.max_tokens as usize
     }
 
     /// Get monthly_quota
     pub fn monthly_quota(&self) -> i32 {
-        self.data.q
+        self.data.monthly_quota
     }
 }
 
@@ -105,11 +111,11 @@ pub fn sign_token_direct(
     signing_key: &ed25519_dalek::SigningKey,
 ) -> Result<String, anyhow::Error> {
     // Validate timestamp is reasonable (not negative, not absurdly far in future)
-    if token_data.e < 0 {
+    if token_data.expiration < 0 {
         return Err(anyhow!("Invalid expiration: timestamp cannot be negative"));
     }
     // Max year ~2100 (4102444800 = 2100-01-01 00:00:00 UTC)
-    if token_data.e > 4102444800 {
+    if token_data.expiration > 4102444800 {
         return Err(anyhow!("Invalid expiration: timestamp too far in future"));
     }
 

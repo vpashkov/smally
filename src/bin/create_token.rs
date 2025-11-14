@@ -80,12 +80,12 @@ fn main() {
     let exp_timestamp = exp.timestamp();
 
     let token_data = TokenData {
-        e: exp_timestamp,
-        u: user_id,
-        k: key_id,
-        t: tier_value,
-        m: max_tokens as i32,
-        q: monthly_quota as i32,
+        expiration: exp_timestamp,
+        user_id,
+        key_id,
+        tier: tier_value,
+        max_tokens: max_tokens as i32,
+        monthly_quota: monthly_quota as i32,
     };
 
     // Sign token with Ed25519 (compact direct signing)
