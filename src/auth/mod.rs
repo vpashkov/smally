@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use coset::{
     cwt::{ClaimsSetBuilder, Timestamp},
-    CborSerializable, CoseSign1Builder, HeaderBuilder, iana,
+    iana, CborSerializable, CoseSign1Builder, HeaderBuilder,
 };
 use dashmap::DashMap;
 use redis::aio::ConnectionManager;
@@ -54,6 +54,7 @@ impl TokenClaims {
     }
 
     /// Get CBOR-encoded bytes
+    #[allow(dead_code)]
     pub fn to_cbor_bytes(&self) -> Result<Vec<u8>, anyhow::Error> {
         let mut cbor_bytes = Vec::new();
         ciborium::into_writer(&self.data, &mut cbor_bytes)?;
@@ -61,6 +62,7 @@ impl TokenClaims {
     }
 
     /// Decode from CBOR bytes
+    #[allow(dead_code)]
     pub fn from_cbor_bytes(cbor_bytes: &[u8]) -> Result<Self, anyhow::Error> {
         let data: TokenData = ciborium::from_reader(cbor_bytes)?;
         Ok(Self { data })
@@ -83,11 +85,12 @@ impl TokenClaims {
 
     /// Get expiration
     pub fn exp(&self) -> Result<DateTime<Utc>, anyhow::Error> {
-        Ok(DateTime::from_timestamp(self.data.expiration, 0)
-            .ok_or_else(|| anyhow::anyhow!("Invalid timestamp"))?)
+        DateTime::from_timestamp(self.data.expiration, 0)
+            .ok_or_else(|| anyhow::anyhow!("Invalid timestamp"))
     }
 
     /// Get max_tokens
+    #[allow(dead_code)]
     pub fn max_tokens(&self) -> usize {
         self.data.max_tokens as usize
     }
@@ -104,6 +107,7 @@ const MAX_CBOR_SIZE: usize = 2048;
 /// Sign token data with Ed25519 using COSET CWT (CBOR Web Token)
 /// Format: base64(COSE_Sign1(CWT ClaimsSet))
 /// Uses RFC 8392 (CWT) and RFC 8152 (COSE) standards
+#[allow(dead_code)]
 pub fn sign_token_direct(
     token_data: &TokenData,
     signing_key: &ed25519_dalek::SigningKey,
@@ -122,14 +126,27 @@ pub fn sign_token_direct(
     let claims = ClaimsSetBuilder::new()
         .subject(token_data.user_id.to_string())
         .expiration_time(Timestamp::WholeSeconds(token_data.expiration))
-        .text_claim("k".to_string(), ciborium::value::Value::Text(token_data.key_id.to_string()))
-        .text_claim("t".to_string(), ciborium::value::Value::Integer((token_data.tier as i64).into()))
-        .text_claim("m".to_string(), ciborium::value::Value::Integer((token_data.max_tokens as i64).into()))
-        .text_claim("q".to_string(), ciborium::value::Value::Integer((token_data.monthly_quota as i64).into()))
+        .text_claim(
+            "k".to_string(),
+            ciborium::value::Value::Text(token_data.key_id.to_string()),
+        )
+        .text_claim(
+            "t".to_string(),
+            ciborium::value::Value::Integer((token_data.tier as i64).into()),
+        )
+        .text_claim(
+            "m".to_string(),
+            ciborium::value::Value::Integer((token_data.max_tokens as i64).into()),
+        )
+        .text_claim(
+            "q".to_string(),
+            ciborium::value::Value::Integer((token_data.monthly_quota as i64).into()),
+        )
         .build();
 
     // Serialize ClaimsSet to CBOR
-    let claims_bytes = claims.to_vec()
+    let claims_bytes = claims
+        .to_vec()
         .map_err(|e| anyhow!("Failed to serialize CWT ClaimsSet: {}", e))?;
 
     // Validate CBOR size is reasonable
@@ -159,7 +176,8 @@ pub fn sign_token_direct(
     sign1.signature = signature.to_bytes().to_vec();
 
     // Serialize COSE_Sign1 to CBOR
-    let cwt_bytes = sign1.to_vec()
+    let cwt_bytes = sign1
+        .to_vec()
         .map_err(|e| anyhow!("Failed to serialize COSE_Sign1: {}", e))?;
 
     // Base64 encode the CWT token
@@ -207,18 +225,22 @@ pub fn verify_token_direct(
     let signature = ed25519_dalek::Signature::from_slice(&sign1.signature)
         .map_err(|e| anyhow!("Invalid signature format: {}", e))?;
 
-    verifying_key.verify(&tbs, &signature)
+    verifying_key
+        .verify(&tbs, &signature)
         .map_err(|e| anyhow!("Signature verification failed: {}", e))?;
 
     // Extract and deserialize CWT ClaimsSet from payload
-    let payload = sign1.payload.as_ref()
+    let payload = sign1
+        .payload
+        .as_ref()
         .ok_or_else(|| anyhow!("Missing CWT payload"))?;
 
     let claims = coset::cwt::ClaimsSet::from_slice(payload)
         .map_err(|e| anyhow!("Invalid CWT ClaimsSet: {}", e))?;
 
     // Extract standard claims
-    let user_id: i64 = claims.subject
+    let user_id: i64 = claims
+        .subject
         .as_ref()
         .ok_or_else(|| anyhow!("Missing subject claim"))?
         .parse()
@@ -269,20 +291,16 @@ pub fn verify_token_direct(
     }
 
     // Reconstruct TokenData from extracted claims
-    let key_id = key_id_str
-        .ok_or_else(|| anyhow!("Missing 'k' (key_id) claim"))?;
-    let key_id = Uuid::parse_str(&key_id)
-        .map_err(|e| anyhow!("Invalid key_id UUID: {}", e))?;
+    let key_id = key_id_str.ok_or_else(|| anyhow!("Missing 'k' (key_id) claim"))?;
+    let key_id = Uuid::parse_str(&key_id).map_err(|e| anyhow!("Invalid key_id UUID: {}", e))?;
 
-    let tier = TierType::from_u8(tier_value
-        .ok_or_else(|| anyhow!("Missing 't' (tier) claim"))?)
+    let tier = TierType::from_u8(tier_value.ok_or_else(|| anyhow!("Missing 't' (tier) claim"))?)
         .map_err(|e| anyhow!("Invalid tier value: {}", e))?;
 
-    let max_tokens = max_tokens_value
-        .ok_or_else(|| anyhow!("Missing 'm' (max_tokens) claim"))?;
+    let max_tokens = max_tokens_value.ok_or_else(|| anyhow!("Missing 'm' (max_tokens) claim"))?;
 
-    let monthly_quota = monthly_quota_value
-        .ok_or_else(|| anyhow!("Missing 'q' (monthly_quota) claim"))?;
+    let monthly_quota =
+        monthly_quota_value.ok_or_else(|| anyhow!("Missing 'q' (monthly_quota) claim"))?;
 
     let token_data = TokenData {
         expiration,
@@ -297,6 +315,7 @@ pub fn verify_token_direct(
 }
 
 // Keep TokenLimits for compatibility with billing module
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenLimits {
     pub max_tokens: usize,
@@ -307,7 +326,6 @@ pub struct TokenLimits {
 #[derive(Clone)]
 struct RevocationStatus {
     is_revoked: bool,
-    cached_at: Instant,
     fresh_until: Instant,
     valid_until: Instant,
     refreshing: Arc<AtomicBool>,
@@ -414,7 +432,6 @@ impl TokenValidator {
             key_id.clone(),
             RevocationStatus {
                 is_revoked,
-                cached_at: now,
                 fresh_until: now + self.fresh_ttl,
                 valid_until: now + self.stale_ttl,
                 refreshing: Arc::new(AtomicBool::new(false)),
@@ -457,7 +474,6 @@ impl TokenValidator {
             key_id.to_string(),
             RevocationStatus {
                 is_revoked,
-                cached_at: now,
                 fresh_until: now + fresh_ttl,
                 valid_until: now + stale_ttl,
                 refreshing: Arc::new(AtomicBool::new(false)),
@@ -472,6 +488,7 @@ impl TokenValidator {
     }
 
     /// Periodically clean up expired cache entries
+    #[allow(dead_code)]
     pub fn cleanup_expired(&self) {
         let now = Instant::now();
         self.revocation_cache

@@ -38,7 +38,8 @@ RUN \
     mkdir -p src/bin benches && \
     echo "fn main() {}" > src/main.rs && \
     echo "pub fn dummy() {}" > src/lib.rs && \
-    echo "fn main() {}" > src/bin/create_api_key.rs && \
+    echo "fn main() {}" > src/bin/create_token.rs && \
+    echo "fn main() {}" > src/bin/generate_keypair.rs && \
     echo "fn main() {}" > build.rs && \
     echo "fn main() {}" > benches/cache_bench.rs && \
     echo "fn main() {}" > benches/tokenizer_bench.rs && \
@@ -64,7 +65,8 @@ ENV SQLX_OFFLINE=true \
 RUN \
     cargo build --release && \
     cp /build/target/release/api /build/api && \
-    cp /build/target/release/create_api_key /build/create_api_key
+    cp /build/target/release/create_token /build/create_token && \
+    cp /build/target/release/generate_keypair /build/generate_keypair
 
 # Runtime stage
 FROM --platform=linux/arm64 ubuntu:22.04
@@ -90,7 +92,8 @@ WORKDIR /app
 
 # Copy the built binaries from builder stage
 COPY --from=builder /build/api /app/api
-COPY --from=builder /build/create_api_key /app/create_api_key
+COPY --from=builder /build/create_token /app/create_token
+COPY --from=builder /build/generate_keypair /app/generate_keypair
 
 # Copy scripts
 COPY scripts /app/scripts
@@ -98,7 +101,8 @@ COPY scripts /app/scripts
 # Create directories for models and logs
 RUN mkdir -p /app/models /app/logs && \
     chmod +x /app/api && \
-    chmod +x /app/create_api_key && \
+    chmod +x /app/create_token && \
+    chmod +x /app/generate_keypair && \
     chmod +x /app/scripts/*.sh 2>/dev/null || true && \
     chmod +x /app/scripts/deployment/*.sh 2>/dev/null || true
 

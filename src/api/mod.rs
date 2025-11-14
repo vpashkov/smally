@@ -178,7 +178,6 @@ pub async fn create_embedding_handler(
         let reset_at = rate_limit_info.get("reset_at").cloned();
         return Err(ApiError::RateLimitExceeded(
             "Monthly quota exhausted".to_string(),
-            rate_limit_info.clone(),
             reset_at,
         ));
     }
@@ -189,7 +188,7 @@ pub async fn create_embedding_handler(
         monitoring::CACHE_HITS.with_label_values(&["total"]).inc();
         let model_name = settings.model_name
             .split('/')
-            .last()
+            .next_back()
             .unwrap_or("unknown")
             .to_string();
         (
@@ -271,7 +270,7 @@ pub enum ApiError {
     BadRequest(String),
     BadRequestWithTokens(String, usize),
     Unauthorized(String),
-    RateLimitExceeded(String, std::collections::HashMap<String, String>, Option<String>),
+    RateLimitExceeded(String, Option<String>),
     InternalError(String),
 }
 
@@ -291,7 +290,7 @@ impl IntoResponse for ApiError {
             ApiError::Unauthorized(msg) => {
                 (StatusCode::UNAUTHORIZED, "invalid_api_key", msg, None, None)
             }
-            ApiError::RateLimitExceeded(msg, _, reset) => (
+            ApiError::RateLimitExceeded(msg, reset) => (
                 StatusCode::TOO_MANY_REQUESTS,
                 "rate_limit_exceeded",
                 msg,

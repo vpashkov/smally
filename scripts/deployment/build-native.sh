@@ -61,7 +61,8 @@ cargo build --release
 log_info "Copying binaries to dist/..."
 mkdir -p dist
 cp target/release/api dist/api
-cp target/release/create_api_key dist/create_api_key
+cp target/release/create_token dist/create_token
+cp target/release/generate_keypair dist/generate_keypair
 
 log_info "Build complete!"
 log_info "Binaries:"
@@ -74,7 +75,8 @@ log_info "=========================================="
 log_info ""
 log_info "Binaries are ready in: dist/"
 log_info "- dist/api ($(du -h dist/api | cut -f1))"
-log_info "- dist/create_api_key ($(du -h dist/create_api_key | cut -f1))"
+log_info "- dist/create_token ($(du -h dist/create_token | cut -f1))"
+log_info "- dist/generate_keypair ($(du -h dist/generate_keypair | cut -f1))"
 log_info ""
 log_info "Platform: $(rustc -vV | grep host | cut -d' ' -f2)"
 log_info ""

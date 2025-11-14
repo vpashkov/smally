@@ -88,8 +88,8 @@ fn main() {
         user_id,
         key_id,
         tier: tier_value,
-        max_tokens: max_tokens as i32,
-        monthly_quota: monthly_quota as i32,
+        max_tokens,
+        monthly_quota,
     };
 
     // Sign token with Ed25519 (compact direct signing)

@@ -61,11 +61,12 @@ log_info "Extracting binaries..."
 mkdir -p dist
 docker create --name smally-builder-temp smally-builder:latest
 docker cp smally-builder-temp:/build/target/release/api dist/api
-docker cp smally-builder-temp:/build/target/release/create_api_key dist/create_api_key
+docker cp smally-builder-temp:/build/target/release/create_token dist/create_token
+docker cp smally-builder-temp:/build/target/release/generate_keypair dist/generate_keypair
 docker rm smally-builder-temp
 
 # Make binaries executable
-chmod +x dist/api dist/create_api_key
+chmod +x dist/api dist/create_token dist/generate_keypair
 
 log_info "Build complete!"
 log_info "Binaries:"
@@ -78,12 +79,13 @@ log_info "=========================================="
 log_info ""
 log_info "Binaries are ready in: dist/"
 log_info "- dist/api ($(du -h dist/api | cut -f1))"
-log_info "- dist/create_api_key ($(du -h dist/create_api_key | cut -f1))"
+log_info "- dist/create_token ($(du -h dist/create_token | cut -f1))"
+log_info "- dist/generate_keypair ($(du -h dist/generate_keypair | cut -f1))"
 log_info ""
 log_info "To deploy manually:"
 log_info ""
 log_info "1. Upload binaries:"
-log_info "   scp dist/api dist/create_api_key user@server:/home/smally/smally-api/"
+log_info "   scp dist/* user@server:/home/smally/smally-api/"
 log_info ""
 log_info "2. SSH to server and restart:"
 log_info "   ssh user@server"

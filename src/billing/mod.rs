@@ -141,6 +141,7 @@ fn get_redis_connection() -> &'static ConnectionManager {
 }
 
 // Check rate limit for free tier users (paid tiers are unlimited)
+#[allow(dead_code)]
 pub async fn check_rate_limit(
     pool: &PgPool,
     user: &User,
@@ -169,6 +170,7 @@ pub async fn check_rate_limit(
 }
 
 // Redis-based rate limiting (fast path)
+#[allow(dead_code)]
 async fn check_rate_limit_redis(
     user: &User,
     api_key: &APIKey,
@@ -225,6 +227,7 @@ async fn check_rate_limit_redis(
 }
 
 // Database-based rate limiting (fallback)
+#[allow(dead_code)]
 async fn check_rate_limit_db(
     pool: &PgPool,
     user: &User,
@@ -299,10 +302,11 @@ async fn check_rate_limit_db(
 
 // Increment usage - records usage for billing and analytics
 // Only increments Redis counter for free tier (they have quotas)
+#[allow(dead_code)]
 pub async fn increment_usage(user: &User, api_key: &APIKey) -> Result<()> {
     let user_id = user.id;
     let api_key_id = api_key.id;
-    let tier = user.tier.clone();
+    let tier = user.tier;
 
     // Only increment Redis counter for free tier (they have quotas)
     // Paid tiers use pure pay-as-you-go billing, no quota tracking needed
@@ -328,6 +332,7 @@ pub async fn increment_usage(user: &User, api_key: &APIKey) -> Result<()> {
 }
 
 // Increment Redis counter for rate limiting
+#[allow(dead_code)]
 async fn increment_redis_counter(user_id: i64, api_key_id: i64) -> Result<()> {
     // Use global Redis connection (reused across requests)
     let mut conn = get_redis_connection().clone();
@@ -352,6 +357,7 @@ async fn increment_redis_counter(user_id: i64, api_key_id: i64) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn get_tier_limit(tier: &TierType, settings: &config::Settings) -> i32 {
     match tier {
         TierType::Free => settings.free_tier_limit,

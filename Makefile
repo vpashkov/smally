@@ -1,4 +1,4 @@
-.PHONY: help deps build run services-up services-down model init-db clean test docker-build docker-up docker-down deploy quick-deploy health-check backup create-api-key logs-prod check bench bench-cache bench-tokenizer bench-inference perf-test load-test quick-test
+.PHONY: help deps build run services-up services-down model init-db clean test docker-build docker-up docker-down deploy quick-deploy health-check backup create-token generate-keypair logs-prod check bench bench-cache bench-tokenizer bench-inference perf-test load-test quick-test
 
 help:
 	@echo "Smally API (Rust) - Make Commands"
@@ -37,7 +37,8 @@ help:
 	@echo "  make docker-down   - Stop production services"
 	@echo "  make deploy        - Deploy to production (full)"
 	@echo "  make quick-deploy  - Quick deploy (code changes only)"
-	@echo "  make create-api-key - Create API key (production)"
+	@echo "  make create-token  - Create CWT token (production)"
+	@echo "  make generate-keypair - Generate Ed25519 keypair for tokens"
 	@echo "  make health-check  - Run health checks"
 	@echo "  make backup        - Backup database"
 	@echo ""
@@ -99,15 +100,24 @@ model:
 init-db:
 	./scripts/init_db.sh admin@example.com scale
 
-create-key:
-	@echo "Usage: make create-key EMAIL=user@example.com TIER=free"
-	@echo "Example: make create-key EMAIL=john@example.com TIER=pro"
-	@if [ -z "$(EMAIL)" ]; then \
-		echo "Error: EMAIL is required"; \
-		echo "Run: make create-key EMAIL=your@email.com TIER=free"; \
+create-token:
+	@echo "Usage: make create-token USER_ID=1 TIER=free [KEY_ID=uuid]"
+	@echo "Example: make create-token USER_ID=123 TIER=pro"
+	@echo "Example: make create-token USER_ID=123 TIER=free KEY_ID=018d1234-5678-7abc-9def-0123456789ab"
+	@if [ -z "$(USER_ID)" ]; then \
+		echo "Error: USER_ID is required"; \
+		echo "Run: make create-token USER_ID=1 TIER=free"; \
 		exit 1; \
 	fi
-	@cargo run --bin create_api_key -- $(EMAIL) $(or $(TIER),free)
+	@if [ -z "$(KEY_ID)" ]; then \
+		cargo run --bin create_token -- $(USER_ID) $(or $(TIER),free); \
+	else \
+		cargo run --bin create_token -- $(USER_ID) $(or $(TIER),free) $(KEY_ID); \
+	fi
+
+generate-keypair:
+	@echo "Generating Ed25519 keypair for token signing..."
+	@cargo run --bin generate_keypair
 
 fmt:
 	cargo fmt
@@ -195,9 +205,6 @@ health-check:
 
 backup:
 	./scripts/deployment/backup.sh
-
-create-api-key:
-	./scripts/deployment/create-api-key.sh
 
 logs-prod:
 	docker-compose -f docker-compose.prod.yml logs -f

@@ -6,11 +6,13 @@ pub struct Settings {
     // API Settings
     pub app_name: String,
     pub version: String,
+    #[allow(dead_code)]
     pub debug: bool,
 
     // Server Settings
     pub host: String,
     pub port: u16,
+    #[allow(dead_code)]
     pub workers: usize,
 
     // Model Settings
@@ -23,23 +25,31 @@ pub struct Settings {
     pub l1_cache_size: usize,
     pub l2_cache_ttl: u64,
     pub redis_url: String,
+    #[allow(dead_code)]
     pub redis_db: i32,
 
     // Database Settings
     pub database_url: String,
 
     // Security Settings
+    #[allow(dead_code)]
     pub secret_key: String,
+    #[allow(dead_code)]
     pub api_key_prefix: String,
     pub token_public_key: String,
+    #[allow(dead_code)]
     pub token_private_key: String,
 
     // Rate Limiting
+    #[allow(dead_code)]
     pub free_tier_limit: i32,
+    #[allow(dead_code)]
     pub pro_tier_limit: i32,
+    #[allow(dead_code)]
     pub scale_tier_limit: i32,
 
     // Performance Settings
+    #[allow(dead_code)]
     pub max_batch_size: usize,
 }
 

@@ -74,6 +74,11 @@ impl<K: Clone + Eq + Hash, V: Clone> LruCache<K, V> {
     }
 
     #[allow(dead_code)]
+    pub fn is_empty(&self) -> bool {
+        self.map.is_empty()
+    }
+
+    #[allow(dead_code)]
     pub fn capacity(&self) -> usize {
         self.capacity
     }

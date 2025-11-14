@@ -256,7 +256,8 @@
       register: binary_check
       loop:
         - api
-        - create_api_key
+        - create_token
+        - generate_keypair
 
     - name: Verify all binaries exist
       delegate_to: localhost
@@ -286,7 +287,8 @@
         mode: '0755'
       loop:
         - api
-        - create_api_key
+        - create_token
+        - generate_keypair
 
     - name: Check binary file info
       command: file {{ smally_app_dir }}/api

@@ -93,9 +93,9 @@ impl EmbeddingModel {
         )?;
 
         // Convert arrays to Vec and create ORT Values
-        let input_ids_vec: Vec<i64> = input_ids.into_raw_vec();
-        let attention_mask_vec: Vec<i64> = attention_mask.into_raw_vec();
-        let token_type_ids_vec: Vec<i64> = token_type_ids.into_raw_vec();
+        let (input_ids_vec, _) = input_ids.into_raw_vec_and_offset();
+        let (attention_mask_vec, _) = attention_mask.into_raw_vec_and_offset();
+        let (token_type_ids_vec, _) = token_type_ids.into_raw_vec_and_offset();
 
         let input_ids_value = Value::from_array(([batch_size, seq_len], input_ids_vec))?;
         let attention_mask_value = Value::from_array(([batch_size, seq_len], attention_mask_vec))?;
@@ -113,16 +113,13 @@ impl EmbeddingModel {
             .try_extract_tensor::<f32>()?;
 
         // Mean pooling and L2 normalization (as standalone functions to avoid self borrow)
-        let mut embedding = Vec::with_capacity(embedding_dim);
-        for _ in 0..embedding_dim {
-            embedding.push(0.0f32);
-        }
+        let mut embedding = vec![0.0f32; embedding_dim];
 
         for i in 0..seq_len {
             let mask = encoding.attention_mask[i] as f32;
-            for j in 0..embedding_dim {
+            for (j, emb) in embedding.iter_mut().enumerate().take(embedding_dim) {
                 let idx = i * embedding_dim + j;
-                embedding[j] += output_data[idx] * mask;
+                *emb += output_data[idx] * mask;
             }
         }
 
@@ -153,40 +150,10 @@ impl EmbeddingModel {
         Ok((embedding, metadata))
     }
 
-    fn mean_pooling(&self, embeddings: &[f32], attention_mask: &[i64], seq_len: usize, embedding_dim: usize) -> Vec<f32> {
-        let mut result = vec![0.0f32; embedding_dim];
-
-        for i in 0..seq_len {
-            let mask = attention_mask[i] as f32;
-            for j in 0..embedding_dim {
-                let idx = i * embedding_dim + j;
-                result[j] += embeddings[idx] * mask;
-            }
-        }
-
-        // Calculate sum of mask
-        let mask_sum: f32 = attention_mask.iter().map(|&x| x as f32).sum();
-        let mask_sum = mask_sum.max(1e-9);
-
-        // Divide by mask sum
-        for val in result.iter_mut() {
-            *val /= mask_sum;
-        }
-
-        result
-    }
-
-    fn l2_normalize(&self, vec: &[f32]) -> Vec<f32> {
-        let norm: f32 = vec.iter().map(|&x| x * x).sum::<f32>().sqrt();
-        let norm = norm.max(1e-9);
-
-        vec.iter().map(|&x| x / norm).collect()
-    }
-
     fn get_model_name(&self) -> String {
         self.model_name
             .split('/')
-            .last()
+            .next_back()
             .unwrap_or(&self.model_name)
             .to_string()
     }

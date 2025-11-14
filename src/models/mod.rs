@@ -1,9 +1,10 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, sqlx::Type)]
+#[derive(Debug, Clone, Copy, Default, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
 pub enum TierType {
+    #[default]
     Free,
     Pro,
     Scale,
@@ -11,7 +12,7 @@ pub enum TierType {
 
 impl TierType {
     /// Convert to u8 (for compact serialization)
-    pub fn to_u8(&self) -> u8 {
+    pub fn to_u8(self) -> u8 {
         match self {
             TierType::Free => 0,
             TierType::Pro => 1,
@@ -36,7 +37,7 @@ impl Serialize for TierType {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_u8(self.to_u8())
+        serializer.serialize_u8((*self).to_u8())
     }
 }
 
@@ -50,12 +51,7 @@ impl<'de> Deserialize<'de> for TierType {
     }
 }
 
-impl Default for TierType {
-    fn default() -> Self {
-        TierType::Free
-    }
-}
-
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
     pub id: i64,
@@ -66,6 +62,7 @@ pub struct User {
     pub updated_at: NaiveDateTime,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct APIKey {
     pub id: i64,
@@ -78,6 +75,7 @@ pub struct APIKey {
     pub last_used_at: Option<NaiveDateTime>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Usage {
     pub id: i64,

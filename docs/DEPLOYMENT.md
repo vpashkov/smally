@@ -90,7 +90,8 @@ Choose the appropriate build script:
 
 **Output**: Binaries in `dist/` directory
 - `dist/api` - Main API server
-- `dist/create_api_key` - API key management tool
+- `dist/create_token` - CWT token creation tool
+- `dist/generate_keypair` - Ed25519 keypair generator
 
 ### Step 2: Deploy with Ansible
 
@@ -318,7 +319,7 @@ Removed **23 obsolete files** (1,686 lines):
        ▼
 ┌─────────────┐
 │ Build       │──── ./scripts/deployment/build-no-buildkit.sh
-│ (Docker)    │──── Produces: dist/api, dist/create_api_key
+│ (Docker)    │──── Produces: dist/api, dist/create_token, dist/generate_keypair
 └──────┬──────┘
        │
        ▼
@@ -381,7 +382,7 @@ Request → Nginx → Smally API Binary → PostgreSQL
 
 After successful deployment:
 
-1. **Create API keys**: Use `scripts/deployment/create-api-key.sh`
+1. **Create CWT tokens**: Use `./generate_keypair` to create keypair, then `./create_token` to create tokens
 2. **Monitor logs**: `journalctl -u smally -f`
 3. **Set up backups**: Use `scripts/deployment/backup.sh`
 4. **Configure SSL**: Add Let's Encrypt to Nginx
@@ -407,8 +408,8 @@ ssh user@server "journalctl -u smally -f"
 # Restart service
 ssh user@server "systemctl restart smally"
 
-# Create API key
-ssh user@server "cd /home/smally/smally-api && ./scripts/deployment/create-api-key.sh email@example.com scale"
+# Create CWT token
+ssh user@server "cd /home/smally/smally-api && TOKEN_PRIVATE_KEY=<hex> ./create_token 1 free"
 
 # Backup database
 ssh user@server "/home/smally/smally-api/scripts/deployment/backup.sh"
@@ -419,14 +420,14 @@ ssh user@server "/home/smally/smally-api/scripts/deployment/backup.sh"
 ```
 /home/smally/smally-api/
 ├── api                    # Main binary
-├── create_api_key         # API key tool
+├── create_token           # CWT token creation tool
+├── generate_keypair       # Ed25519 keypair generator
 ├── .env                   # Configuration (created by Ansible)
 ├── logs/                  # Application logs
 └── scripts/               # Operational scripts
     └── deployment/
         ├── backup.sh
         ├── restore.sh
-        ├── create-api-key.sh
         └── health-check.sh
 
 /etc/systemd/system/

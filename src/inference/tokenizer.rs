@@ -23,7 +23,6 @@ fn default_lowercase() -> bool {
 
 pub struct Tokenizer {
     vocab: HashMap<String, i64>,
-    ids_to_tokens: HashMap<i64, String>,
     cls_token_id: i64,
     sep_token_id: i64,
     pad_token_id: i64,
@@ -37,7 +36,7 @@ impl Tokenizer {
         let config_path = model_path.join("tokenizer_config.json");
 
         // Load vocab
-        let (vocab, ids_to_tokens) = Self::load_vocab(&vocab_path)?;
+        let (vocab, _ids_to_tokens) = Self::load_vocab(&vocab_path)?;
 
         // Load config
         let config = Self::load_config(&config_path);
@@ -48,7 +47,6 @@ impl Tokenizer {
             pad_token_id: *vocab.get("[PAD]").unwrap_or(&0),
             unk_token_id: *vocab.get("[UNK]").unwrap_or(&100),
             vocab,
-            ids_to_tokens,
             do_lower_case: config.do_lower_case,
         })
     }
@@ -142,7 +140,11 @@ impl Tokenizer {
                 }
 
                 // Move back by character boundary
-                end = word[..end].char_indices().rev().next().map(|(i, _)| i).unwrap_or(0);
+                end = word[..end]
+                    .char_indices()
+                    .next_back()
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
             }
 
             if !found {
@@ -176,6 +178,8 @@ impl Tokenizer {
         fs::read_to_string(path)
             .ok()
             .and_then(|content| serde_json::from_str(&content).ok())
-            .unwrap_or(TokenizerConfig { do_lower_case: true })
+            .unwrap_or(TokenizerConfig {
+                do_lower_case: true,
+            })
     }
 }
