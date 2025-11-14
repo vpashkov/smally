@@ -362,3 +362,62 @@ where
         Ok(claims)
     }
 }
+
+/// Extractor for admin token authentication (protects registration/login endpoints)
+#[async_trait]
+impl<S> FromRequestParts<S> for auth::AdminTokenClaims
+where
+    S: Send + Sync,
+{
+    type Rejection = users::ApiError;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        // Get authorization header
+        let auth_header = parts.headers.get("authorization").ok_or_else(|| {
+            users::ApiError::Unauthorized("Authorization header is required".to_string())
+        })?;
+
+        // Convert header value to string
+        let auth_str = auth_header.to_str().map_err(|_| {
+            users::ApiError::Unauthorized("Invalid authorization header".to_string())
+        })?;
+
+        // Extract Bearer token
+        let token_parts: Vec<&str> = auth_str.splitn(2, ' ').collect();
+        if token_parts.len() != 2 || token_parts[0].to_lowercase() != "bearer" {
+            return Err(users::ApiError::Unauthorized(
+                "Authorization header must be 'Bearer <token>'".to_string(),
+            ));
+        }
+
+        let full_token = token_parts[1];
+
+        // Check if token has admin_ prefix
+        if !full_token.starts_with("admin_") {
+            return Err(users::ApiError::Unauthorized(
+                "Invalid admin token format".to_string(),
+            ));
+        }
+
+        // Strip prefix and validate
+        let token = &full_token[6..]; // Remove "admin_" prefix
+
+        // Get public key from settings
+        let settings = config::get_settings();
+        let public_key_bytes = hex::decode(&settings.token_public_key).map_err(|_| {
+            users::ApiError::InternalError("Failed to decode public key".to_string())
+        })?;
+        let verifying_key = ed25519_dalek::VerifyingKey::from_bytes(
+            &public_key_bytes[..]
+                .try_into()
+                .map_err(|_| users::ApiError::InternalError("Invalid public key".to_string()))?,
+        )
+        .map_err(|_| users::ApiError::InternalError("Invalid public key".to_string()))?;
+
+        // Verify admin token
+        let token_data = auth::validate_admin_token(token, &verifying_key)
+            .map_err(|e| users::ApiError::Unauthorized(format!("Invalid admin token: {}", e)))?;
+
+        Ok(auth::AdminTokenClaims::new(token_data))
+    }
+}

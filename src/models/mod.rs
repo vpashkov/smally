@@ -128,10 +128,16 @@ pub struct Usage {
 // Request/Response DTOs
 // ============================================================================
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, validator::Validate)]
 pub struct CreateUserRequest {
+    #[validate(email(message = "Invalid email format"))]
+    #[validate(length(max = 255, message = "Email too long"))]
     pub email: String,
+
+    #[validate(length(min = 8, max = 128, message = "Password must be between 8 and 128 characters"))]
     pub password: String,
+
+    #[validate(length(min = 1, max = 255, message = "Name must be between 1 and 255 characters"))]
     pub name: Option<String>,
 }
 

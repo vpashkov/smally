@@ -197,4 +197,28 @@ pub mod helpers {
 
         format!("{}{}", settings.api_key_prefix, token)
     }
+
+    /// Create a test admin token for UI/admin access
+    pub fn create_test_admin_token() -> String {
+        use crate::auth::sign_admin_token;
+        use chrono::Utc;
+
+        let settings = config::get_settings();
+
+        // Generate admin token
+        let private_key_bytes =
+            hex::decode(&settings.token_private_key).expect("Invalid private key");
+
+        let signing_key = ed25519_dalek::SigningKey::from_bytes(
+            &private_key_bytes[..]
+                .try_into()
+                .expect("Invalid private key length"),
+        );
+
+        let expiration = (Utc::now() + chrono::Duration::days(365)).timestamp();
+        let token = sign_admin_token("ui", expiration, &signing_key)
+            .expect("Failed to sign admin token");
+
+        format!("admin_{}", token)
+    }
 }

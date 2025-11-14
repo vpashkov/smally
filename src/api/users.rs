@@ -7,26 +7,57 @@ use axum::{
 use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::Utc;
 use serde_json::json;
+use validator::Validate;
 
 use crate::auth::session::{create_session_token, SessionClaims};
 use crate::database;
 use crate::models::{AuthResponse, CreateUserRequest, LoginRequest, TierType, User, UserResponse};
 
-/// Register a new user
+/// Register a new user (requires admin token)
 pub async fn register_handler(
+    _admin_token: crate::auth::AdminTokenClaims,
     Json(payload): Json<CreateUserRequest>,
 ) -> Result<Response, ApiError> {
     let pool = database::get_db();
 
-    // Validate email format
-    if !payload.email.contains('@') {
-        return Err(ApiError::BadRequest("Invalid email format".to_string()));
-    }
+    // Validate input using validator crate
+    payload.validate().map_err(|e| {
+        let error_msg = e
+            .field_errors()
+            .iter()
+            .map(|(field, errors)| {
+                format!(
+                    "{}: {}",
+                    field,
+                    errors
+                        .iter()
+                        .filter_map(|e| e.message.as_ref())
+                        .map(|m| m.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("; ");
+        ApiError::BadRequest(format!("Validation failed: {}", error_msg))
+    })?;
 
-    // Validate password strength
-    if payload.password.len() < 8 {
+    // Additional email validation - check for disposable/temporary email domains
+    let email_lower = payload.email.to_lowercase();
+    let disposable_domains = [
+        "tempmail.com",
+        "throwaway.email",
+        "guerrillamail.com",
+        "10minutemail.com",
+        "mailinator.com",
+    ];
+
+    if disposable_domains
+        .iter()
+        .any(|domain| email_lower.ends_with(domain))
+    {
         return Err(ApiError::BadRequest(
-            "Password must be at least 8 characters".to_string(),
+            "Disposable email addresses are not allowed".to_string(),
         ));
     }
 
@@ -113,8 +144,11 @@ pub async fn register_handler(
     Ok((StatusCode::CREATED, Json(response)).into_response())
 }
 
-/// Login user
-pub async fn login_handler(Json(payload): Json<LoginRequest>) -> Result<Response, ApiError> {
+/// Login user (requires admin token)
+pub async fn login_handler(
+    _admin_token: crate::auth::AdminTokenClaims,
+    Json(payload): Json<LoginRequest>,
+) -> Result<Response, ApiError> {
     let pool = database::get_db();
 
     // Find user by email
@@ -212,7 +246,7 @@ impl IntoResponse for ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::helpers::{cleanup_db, create_test_user, setup};
+    use crate::test_utils::helpers::{cleanup_db, create_test_admin_token, create_test_user, setup};
     use axum::{
         body::Body,
         http::{Request, StatusCode},
@@ -236,6 +270,7 @@ mod tests {
         cleanup_db().await;
 
         let app = app();
+        let admin_token = create_test_admin_token();
 
         let payload = json!({
             "email": "test@example.com",
@@ -249,6 +284,7 @@ mod tests {
                     .method("POST")
                     .uri("/register")
                     .header("content-type", "application/json")
+                    .header("authorization", format!("Bearer {}", admin_token))
                     .body(Body::from(serde_json::to_vec(&payload).unwrap()))
                     .unwrap(),
             )
@@ -277,6 +313,7 @@ mod tests {
         create_test_user("test@example.com", "password123").await;
 
         let app = app();
+        let admin_token = create_test_admin_token();
 
         let payload = json!({
             "email": "test@example.com",
@@ -289,6 +326,7 @@ mod tests {
                     .method("POST")
                     .uri("/register")
                     .header("content-type", "application/json")
+                    .header("authorization", format!("Bearer {}", admin_token))
                     .body(Body::from(serde_json::to_vec(&payload).unwrap()))
                     .unwrap(),
             )
@@ -309,6 +347,7 @@ mod tests {
         create_test_user("test@example.com", "password123").await;
 
         let app = app();
+        let admin_token = create_test_admin_token();
 
         let payload = json!({
             "email": "test@example.com",
@@ -321,6 +360,7 @@ mod tests {
                     .method("POST")
                     .uri("/login")
                     .header("content-type", "application/json")
+                    .header("authorization", format!("Bearer {}", admin_token))
                     .body(Body::from(serde_json::to_vec(&payload).unwrap()))
                     .unwrap(),
             )
@@ -349,6 +389,7 @@ mod tests {
         create_test_user("test@example.com", "password123").await;
 
         let app = app();
+        let admin_token = create_test_admin_token();
 
         let payload = json!({
             "email": "test@example.com",
@@ -361,6 +402,7 @@ mod tests {
                     .method("POST")
                     .uri("/login")
                     .header("content-type", "application/json")
+                    .header("authorization", format!("Bearer {}", admin_token))
                     .body(Body::from(serde_json::to_vec(&payload).unwrap()))
                     .unwrap(),
             )
@@ -420,6 +462,90 @@ mod tests {
                     .method("GET")
                     .uri("/me")
                     .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+        cleanup_db().await;
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_registration_requires_admin_token() {
+        setup().await;
+        cleanup_db().await;
+
+        let app = app();
+
+        let payload = json!({
+            "email": "test@example.com",
+            "password": "testpassword123",
+            "name": "Test User"
+        });
+
+        // Test without admin token
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/register")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&payload).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+        // Test with invalid admin token
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/register")
+                    .header("content-type", "application/json")
+                    .header("authorization", "Bearer admin_invalid_token")
+                    .body(Body::from(serde_json::to_vec(&payload).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+        cleanup_db().await;
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_login_requires_admin_token() {
+        setup().await;
+        cleanup_db().await;
+
+        create_test_user("test@example.com", "password123").await;
+
+        let app = app();
+
+        let payload = json!({
+            "email": "test@example.com",
+            "password": "password123"
+        });
+
+        // Test without admin token
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/login")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_vec(&payload).unwrap()))
                     .unwrap(),
             )
             .await

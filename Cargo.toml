@@ -59,6 +59,8 @@ uuid = { version = "1.11", features = ["v7", "serde"] }
 ed25519-dalek = { version = "2.1", features = ["rand_core"] }
 bcrypt = "0.16"
 jsonwebtoken = "9.3"
+validator = { version = "0.18", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 
 # Metrics (Prometheus)
 prometheus = { version = "0.13", features = ["process"] }

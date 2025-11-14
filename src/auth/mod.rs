@@ -42,6 +42,17 @@ pub struct TokenData {
     pub monthly_quota: i32,
 }
 
+/// Admin token data - simpler token for UI/admin operations (no quotas/usage tracking)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdminTokenData {
+    /// Expiration time (Unix timestamp)
+    #[serde(rename = "e")]
+    pub expiration: i64,
+    /// Token purpose/scope (e.g., "ui", "admin", "cli")
+    #[serde(rename = "s")]
+    pub scope: String,
+}
+
 /// Token claims with CBOR-encoded data
 #[derive(Debug, Clone)]
 pub struct TokenClaims {
@@ -498,6 +509,124 @@ impl TokenValidator {
     }
 }
 
+// ============================================================================
+// Admin Token Functions (for UI/CLI access to user management endpoints)
+// ============================================================================
+
+/// Sign an admin token (simpler than API tokens, no usage tracking)
+pub fn sign_admin_token(
+    scope: &str,
+    expiration: i64,
+    signing_key: &ed25519_dalek::SigningKey,
+) -> Result<String> {
+    use base64::Engine as _;
+
+    // Build CWT ClaimsSet
+    let claims = ClaimsSetBuilder::new()
+        .expiration_time(Timestamp::WholeSeconds(expiration))
+        .text_claim(
+            "s".to_string(),
+            ciborium::value::Value::Text(scope.to_string()),
+        )
+        .build();
+
+    // Build protected header with algorithm
+    let protected = HeaderBuilder::new()
+        .algorithm(iana::Algorithm::EdDSA)
+        .build();
+
+    // Sign the token
+    let sign1 = CoseSign1Builder::new()
+        .protected(protected)
+        .payload(claims.to_vec().map_err(|e| anyhow!("Failed to encode claims: {}", e))?)
+        .try_create_signature(&[], |bytes| {
+            use ed25519_dalek::Signer;
+            Ok::<Vec<u8>, coset::CoseError>(signing_key.sign(bytes).to_vec())
+        })
+        .map_err(|e| anyhow!("Failed to sign token: {}", e))?
+        .build();
+
+    // Encode to bytes
+    let token_bytes = sign1.to_vec().map_err(|e| anyhow!("Failed to encode token: {}", e))?;
+
+    // Base64 encode
+    Ok(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&token_bytes))
+}
+
+/// Validate an admin token
+pub fn validate_admin_token(token: &str, verifying_key: &ed25519_dalek::VerifyingKey) -> Result<AdminTokenData> {
+    use base64::Engine as _;
+    use coset::CoseSign1;
+    use ed25519_dalek::Verifier;
+
+    // Decode base64
+    let token_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(token)
+        .map_err(|e| anyhow!("Invalid base64: {}", e))?;
+
+    // Parse COSE_Sign1
+    let sign1 = CoseSign1::from_slice(&token_bytes)
+        .map_err(|e| anyhow!("Invalid COSE structure: {}", e))?;
+
+    // Verify signature
+    sign1
+        .verify_signature(&[], |sig, data| {
+            let signature = ed25519_dalek::Signature::from_slice(sig)
+                .map_err(|e| anyhow!("Invalid signature format: {}", e))?;
+            verifying_key
+                .verify(data, &signature)
+                .map_err(|e| anyhow!("Signature verification failed: {}", e))
+        })
+        .map_err(|e| anyhow!("Token verification failed: {}", e))?;
+
+    // Parse claims
+    let claims = coset::cwt::ClaimsSet::from_slice(
+        sign1
+            .payload
+            .as_ref()
+            .ok_or_else(|| anyhow!("Missing payload"))?,
+    )
+    .map_err(|e| anyhow!("Invalid claims: {}", e))?;
+
+    // Check expiration and extract timestamp
+    let exp_timestamp = if let Some(ref exp) = claims.expiration_time {
+        let timestamp = match exp {
+            Timestamp::WholeSeconds(s) => *s,
+            Timestamp::FractionalSeconds(f) => *f as i64,
+        };
+
+        if Utc::now().timestamp() > timestamp {
+            return Err(anyhow!("Token expired"));
+        }
+        timestamp
+    } else {
+        return Err(anyhow!("Token missing expiration"));
+    };
+
+    // Extract scope from custom claims
+    let scope = claims
+        .rest
+        .iter()
+        .find_map(|(name, value)| {
+            match name {
+                coset::cwt::ClaimName::Text(key) if key == "s" => {
+                    if let ciborium::value::Value::Text(s) = value {
+                        Some(s.clone())
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            }
+        })
+        .ok_or_else(|| anyhow!("Missing scope claim"))?;
+
+    Ok(AdminTokenData {
+        expiration: exp_timestamp,
+        scope,
+    })
+}
+
 /// Global token validator instance
 static TOKEN_VALIDATOR: once_cell::sync::OnceCell<TokenValidator> =
     once_cell::sync::OnceCell::new();
@@ -534,4 +663,28 @@ pub fn get_validator() -> &'static TokenValidator {
     TOKEN_VALIDATOR
         .get()
         .expect("Token validator not initialized")
+}
+
+// ============================================================================
+// Admin Token Claims (for Axum extractor)
+// ============================================================================
+
+/// Admin token claims wrapper for use as Axum extractor
+#[derive(Debug, Clone)]
+pub struct AdminTokenClaims {
+    pub data: AdminTokenData,
+}
+
+impl AdminTokenClaims {
+    pub fn new(data: AdminTokenData) -> Self {
+        Self { data }
+    }
+
+    pub fn scope(&self) -> &str {
+        &self.data.scope
+    }
+
+    pub fn expiration(&self) -> i64 {
+        self.data.expiration
+    }
 }
