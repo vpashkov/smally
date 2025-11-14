@@ -20,7 +20,6 @@
       loop:
         - api
         - create_api_key
-      failed_when: not binary_check.results | selectattr('stat.exists') | list
 
     - name: Verify all binaries exist
       delegate_to: localhost
@@ -28,6 +27,8 @@
       fail:
         msg: |
           ERROR: Binaries not found in {{ local_dist_dir }}/
+
+          Missing: {{ binary_check.results | rejectattr('stat.exists') | map(attribute='item') | list | join(', ') }}
 
           Please build binaries first:
             ./scripts/deployment/build.sh              # With BuildKit
