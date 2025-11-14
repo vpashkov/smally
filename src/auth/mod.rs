@@ -14,29 +14,45 @@ use tracing::{info, warn};
 use crate::config;
 use crate::models::TierType;
 
-/// PASETO token claims
+/// PASETO token claims (compact format)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenClaims {
-    /// Subject - unique key identifier
-    pub sub: String,
     /// User ID
+    #[serde(rename = "u")]
     pub user_id: i64,
     /// API key ID (for revocation tracking)
+    #[serde(rename = "k")]
     pub key_id: String,
-    /// User tier
+    /// User tier (0=Free, 1=Pro, 2=Scale)
+    #[serde(rename = "t")]
     pub tier: TierType,
-    /// Expiration time
+    /// Expiration time (Unix timestamp)
+    #[serde(rename = "e", with = "chrono::serde::ts_seconds")]
     pub exp: DateTime<Utc>,
-    /// Issued at time
-    pub iat: DateTime<Utc>,
-    /// Token limits (embedded in token)
-    pub limits: TokenLimits,
+    /// Max tokens (flattened from limits)
+    #[serde(rename = "m")]
+    pub max_tokens: usize,
+    /// Monthly quota (flattened from limits)
+    #[serde(rename = "q")]
+    pub monthly_quota: i32,
 }
 
+// Keep TokenLimits for compatibility with billing module
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenLimits {
+    #[serde(rename = "m")]
     pub max_tokens: usize,
+    #[serde(rename = "q")]
     pub monthly_quota: i32,
+}
+
+impl TokenClaims {
+    pub fn limits(&self) -> TokenLimits {
+        TokenLimits {
+            max_tokens: self.max_tokens,
+            monthly_quota: self.monthly_quota,
+        }
+    }
 }
 
 /// Revocation status cache entry
@@ -167,8 +183,7 @@ impl PasetoValidator {
         let public_key = PasetoAsymmetricPublicKey::<V4, Public>::from(&key);
 
         // Parse and verify token
-        let verified_payload = PasetoParser::<V4, Public>::default()
-            .parse(token, &public_key)?;
+        let verified_payload = PasetoParser::<V4, Public>::default().parse(token, &public_key)?;
 
         // Convert JsonValue to TokenClaims
         let claims: TokenClaims = serde_json::from_value(verified_payload)?;

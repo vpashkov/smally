@@ -7,7 +7,6 @@ mod database;
 mod inference;
 mod models;
 mod monitoring;
-mod security;
 
 use axum::{
     http::Method,

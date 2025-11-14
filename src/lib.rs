@@ -9,4 +9,3 @@ pub mod database;
 pub mod inference;
 pub mod models;
 pub mod monitoring;
-pub mod security;

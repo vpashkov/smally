@@ -410,7 +410,7 @@ async fn check_rate_limit_redis_from_claims(
         .ok_or_else(|| anyhow!("Invalid time"))?;
 
     // Get limit from token (embedded in token, no config needed!)
-    let limit = claims.limits.monthly_quota as i64;
+    let limit = claims.monthly_quota as i64;
 
     // Check if exceeded
     let is_allowed = count < limit;

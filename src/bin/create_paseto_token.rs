@@ -1,8 +1,8 @@
 use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
 use rusty_paseto::core::{Key, PasetoAsymmetricPrivateKey, Public, V4};
-use rusty_paseto::prelude::{CustomClaim, ExpirationClaim, IssuedAtClaim, PasetoBuilder, SubjectClaim};
-use serde_json::json;
+use rusty_paseto::generic::GenericBuilder;
+use rusty_paseto::prelude::CustomClaim;
 use std::env;
 
 fn main() {
@@ -48,12 +48,10 @@ fn main() {
     });
 
     // Create signing key
-    let signing_key = SigningKey::from_bytes(
-        &private_key_bytes.try_into().unwrap_or_else(|_| {
-            eprintln!("Error: Private key must be 32 bytes");
-            std::process::exit(1);
-        })
-    );
+    let signing_key = SigningKey::from_bytes(&private_key_bytes.try_into().unwrap_or_else(|_| {
+        eprintln!("Error: Private key must be 32 bytes");
+        std::process::exit(1);
+    }));
 
     // Determine limits based on tier
     let (max_tokens, monthly_quota) = match tier {
@@ -67,19 +65,6 @@ fn main() {
     let now = Utc::now();
     let exp = now + Duration::days(365 * 5);
 
-    let claims = json!({
-        "sub": format!("user_{}", user_id),
-        "user_id": user_id,
-        "key_id": key_id,
-        "tier": tier,
-        "exp": exp.to_rfc3339(),
-        "iat": now.to_rfc3339(),
-        "limits": {
-            "max_tokens": max_tokens,
-            "monthly_quota": monthly_quota
-        }
-    });
-
     // Create PASETO private key (64 bytes = 32 private + 32 public)
     let verifying_bytes = signing_key.verifying_key().to_bytes();
     let mut full_key = [0u8; 64];
@@ -89,23 +74,22 @@ fn main() {
     let key = Key::<64>::try_from(&full_key[..]).unwrap();
     let private_key = PasetoAsymmetricPrivateKey::<V4, Public>::from(&key);
 
-    // Build and sign token
-    let subject = format!("user_{}", user_id);
-    let exp_str = exp.to_rfc3339();
-    let iat_str = now.to_rfc3339();
+    /*
+    Build and sign token with compact claims (single-letter keys).
+    Using GenericBuilder to avoid auto-added iat/nbf claims.
+    Use "e" instead of reserved "exp" to allow Unix timestamp.
+    Flatten all fields to top level to avoid nested JSON structure.
+    */
+    let exp_timestamp = exp.timestamp();
 
-    let token = PasetoBuilder::<V4, Public>::default()
-        .set_claim(SubjectClaim::from(subject.as_str()))
-        .set_claim(ExpirationClaim::try_from(exp_str.as_str()).unwrap())
-        .set_claim(IssuedAtClaim::try_from(iat_str.as_str()).unwrap())
-        .set_claim(CustomClaim::try_from(("user_id", user_id as i64)).unwrap())
-        .set_claim(CustomClaim::try_from(("key_id", key_id.to_string())).unwrap())
-        .set_claim(CustomClaim::try_from(("tier", tier.to_string())).unwrap())
-        .set_claim(CustomClaim::try_from(("limits", serde_json::to_value(json!({
-            "max_tokens": max_tokens,
-            "monthly_quota": monthly_quota
-        })).unwrap())).unwrap())
-        .build(&private_key)
+    let token = GenericBuilder::<V4, Public>::default()
+        .set_claim(CustomClaim::try_from(("e", exp_timestamp)).unwrap())
+        .set_claim(CustomClaim::try_from(("u", user_id as i64)).unwrap())
+        .set_claim(CustomClaim::try_from(("k", key_id.to_string())).unwrap())
+        .set_claim(CustomClaim::try_from(("t", tier.to_string())).unwrap())
+        .set_claim(CustomClaim::try_from(("m", max_tokens as i64)).unwrap())
+        .set_claim(CustomClaim::try_from(("q", monthly_quota as i64)).unwrap())
+        .try_sign(&private_key)
         .unwrap();
 
     println!("\n=== PASETO Token Generated ===\n");
