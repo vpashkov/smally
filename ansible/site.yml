@@ -256,8 +256,6 @@
 
     - name: Make all scripts executable
       shell: find {{ smally_app_dir }}/scripts -name "*.sh" -type f -exec chmod +x {} +
-      args:
-        warn: false
       changed_when: false
 
     - name: Create logs directory
