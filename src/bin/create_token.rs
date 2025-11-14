@@ -7,18 +7,18 @@ use uuid::Uuid;
 
 fn main() {
     // Get private key from environment or args
-    let private_key_hex = env::var("PASETO_PRIVATE_KEY").unwrap_or_else(|_| {
-        eprintln!("Error: PASETO_PRIVATE_KEY environment variable not set");
-        eprintln!("Usage: PASETO_PRIVATE_KEY=<hex> cargo run --bin create_paseto_token <user_id> <tier> <key_id>");
+    let private_key_hex = env::var("TOKEN_PRIVATE_KEY").unwrap_or_else(|_| {
+        eprintln!("Error: TOKEN_PRIVATE_KEY environment variable not set");
+        eprintln!("Usage: TOKEN_PRIVATE_KEY=<hex> cargo run --bin create_token <user_id> <tier> [key_id]");
         std::process::exit(1);
     });
 
     // Parse command line arguments
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
-        eprintln!("Usage: cargo run --bin create_paseto_token <user_id> <tier> [key_id]");
-        eprintln!("Example: cargo run --bin create_paseto_token 123 free");
-        eprintln!("         cargo run --bin create_paseto_token 123 free 018d1234-5678-7abc-9def-0123456789ab");
+        eprintln!("Usage: cargo run --bin create_token <user_id> <tier> [key_id]");
+        eprintln!("Example: cargo run --bin create_token 123 free");
+        eprintln!("         cargo run --bin create_token 123 free 018d1234-5678-7abc-9def-0123456789ab");
         eprintln!("\nTiers: free, pro, scale");
         eprintln!("\nIf key_id is not provided, a new UUIDv7 will be generated.");
         std::process::exit(1);
@@ -88,10 +88,10 @@ fn main() {
         q: monthly_quota as i32,
     };
 
-    // Sign token directly with Ed25519 (no PASETO overhead)
+    // Sign token with Ed25519 (compact direct signing)
     let token = sign_token_direct(&token_data, &signing_key).unwrap();
 
-    println!("\n=== Direct Signed Token Generated ===\n");
+    println!("\n=== Ed25519-Signed Token Generated ===\n");
     println!("User ID: {}", user_id);
     println!("Tier: {}", tier_name);
     println!("Key ID: {}", key_id);

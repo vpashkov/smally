@@ -121,7 +121,7 @@ pub async fn create_embedding_handler(
 
     let token = parts[1];
 
-    // Validate PASETO token
+    // Validate token
     let validator = auth::get_validator();
     let claims = validator
         .validate(token)

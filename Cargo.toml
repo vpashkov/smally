@@ -20,8 +20,8 @@ name = "generate_keypair"
 path = "src/bin/generate_keypair.rs"
 
 [[bin]]
-name = "create_paseto_token"
-path = "src/bin/create_paseto_token.rs"
+name = "create_token"
+path = "src/bin/create_token.rs"
 
 [dependencies]
 # Async runtime
@@ -58,7 +58,6 @@ hex = "0.4"
 rand = "0.8"
 base64 = "0.22"
 uuid = { version = "1.10", features = ["v7", "serde"] }
-rusty_paseto = { version = "0.7", features = ["v4"] }
 ed25519-dalek = { version = "2.1", features = ["rand_core"] }
 
 # Metrics (Prometheus)

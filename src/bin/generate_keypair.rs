@@ -2,7 +2,7 @@ use ed25519_dalek::SigningKey;
 use rand::rngs::OsRng;
 
 fn main() {
-    println!("Generating Ed25519 keypair for PASETO...\n");
+    println!("Generating Ed25519 keypair for token signing...\n");
 
     // Generate a new keypair
     let mut csprng = OsRng;
@@ -21,10 +21,10 @@ fn main() {
 
     println!("=== .env Configuration ===\n");
     println!("# Add these to your .env file:");
-    println!("PASETO_PRIVATE_KEY={}", private_key_hex);
-    println!("PASETO_PUBLIC_KEY={}", public_key_hex);
+    println!("TOKEN_PRIVATE_KEY={}", private_key_hex);
+    println!("TOKEN_PUBLIC_KEY={}", public_key_hex);
     println!("\n=== Security Notice ===");
-    println!("- Keep PASETO_PRIVATE_KEY secret (only on auth server)");
-    println!("- PASETO_PUBLIC_KEY can be shared (on all worker nodes)");
+    println!("- Keep TOKEN_PRIVATE_KEY secret (only on auth server)");
+    println!("- TOKEN_PUBLIC_KEY can be shared (on all worker nodes)");
     println!("- Never commit private key to version control");
 }

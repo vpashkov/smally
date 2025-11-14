@@ -30,7 +30,7 @@ pub struct TokenData {
     pub q: i32,
 }
 
-/// PASETO token claims with CBOR-encoded data
+/// Token claims with CBOR-encoded data
 #[derive(Debug, Clone)]
 pub struct TokenClaims {
     /// Decoded token data (cached for efficiency)
@@ -97,7 +97,7 @@ const SIGNING_DOMAIN: &[u8] = b"embed-api-token-v1";
 /// Expected fixed CBOR size for TokenData (all fields are now fixed-length)
 const EXPECTED_CBOR_SIZE: usize = 52; // Approximate, will validate at runtime
 
-/// Sign token data with Ed25519 (direct approach, no PASETO overhead)
+/// Sign token data with Ed25519 (direct signing, compact format)
 /// Format: base64(version(1) + cbor_data(fixed) + signature(64))
 /// Fixed-length CBOR eliminates need for length field
 pub fn sign_token_direct(
@@ -119,7 +119,11 @@ pub fn sign_token_direct(
 
     // Validate CBOR size is reasonable and within bounds
     if cbor_bytes.len() > MAX_CBOR_SIZE {
-        return Err(anyhow!("Token data too large: {} bytes exceeds maximum of {} bytes", cbor_bytes.len(), MAX_CBOR_SIZE));
+        return Err(anyhow!(
+            "Token data too large: {} bytes exceeds maximum of {} bytes",
+            cbor_bytes.len(),
+            MAX_CBOR_SIZE
+        ));
     }
 
     // Prepare data to sign: domain + version + CBOR (no length field needed)
@@ -164,7 +168,10 @@ pub fn verify_token_direct(
     // Maximum size with fixed CBOR: version(1) + cbor(MAX_CBOR_SIZE) + signature(64)
     let max_len = 1 + MAX_CBOR_SIZE + 64;
     if token_bytes.len() > max_len {
-        return Err(anyhow!("Token too large: {} bytes exceeds maximum", token_bytes.len()));
+        return Err(anyhow!(
+            "Token too large: {} bytes exceeds maximum",
+            token_bytes.len()
+        ));
     }
 
     // Extract version
@@ -210,8 +217,8 @@ struct RevocationStatus {
     refreshing: Arc<AtomicBool>,
 }
 
-/// PASETO validator with stale-while-revalidate revocation checking
-pub struct PasetoValidator {
+/// Token validator with stale-while-revalidate revocation checking
+pub struct TokenValidator {
     public_key: Vec<u8>,
     revocation_cache: Arc<DashMap<String, RevocationStatus>>,
     redis_client: ConnectionManager,
@@ -219,8 +226,8 @@ pub struct PasetoValidator {
     stale_ttl: Duration,
 }
 
-impl PasetoValidator {
-    /// Create a new PASETO validator
+impl TokenValidator {
+    /// Create a new token validator
     pub async fn new(
         public_key_hex: &str,
         redis_client: ConnectionManager,
@@ -376,37 +383,37 @@ impl PasetoValidator {
     }
 }
 
-/// Global PASETO validator instance
-static PASETO_VALIDATOR: once_cell::sync::OnceCell<PasetoValidator> =
+/// Global token validator instance
+static TOKEN_VALIDATOR: once_cell::sync::OnceCell<TokenValidator> =
     once_cell::sync::OnceCell::new();
 
-/// Initialize the global PASETO validator
-pub async fn init_paseto_validator() -> Result<()> {
+/// Initialize the global token validator
+pub async fn init_token_validator() -> Result<()> {
     let settings = config::get_settings();
 
     // Get Redis connection
     let redis_client = redis::Client::open(settings.redis_url.as_str())?;
     let conn = ConnectionManager::new(redis_client).await?;
 
-    let validator = PasetoValidator::new(
-        &settings.paseto_public_key,
+    let validator = TokenValidator::new(
+        &settings.token_public_key,
         conn,
         300,  // 5 minutes fresh TTL
         3600, // 60 minutes stale TTL
     )
     .await?;
 
-    PASETO_VALIDATOR
+    TOKEN_VALIDATOR
         .set(validator)
-        .map_err(|_| anyhow::anyhow!("PASETO validator already initialized"))?;
+        .map_err(|_| anyhow::anyhow!("Token validator already initialized"))?;
 
-    info!("PASETO validator initialized");
+    info!("Token validator initialized");
     Ok(())
 }
 
-/// Get the global PASETO validator
-pub fn get_validator() -> &'static PasetoValidator {
-    PASETO_VALIDATOR
+/// Get the global token validator
+pub fn get_validator() -> &'static TokenValidator {
+    TOKEN_VALIDATOR
         .get()
-        .expect("PASETO validator not initialized")
+        .expect("Token validator not initialized")
 }

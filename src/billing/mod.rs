@@ -360,7 +360,7 @@ fn get_tier_limit(tier: &TierType, settings: &config::Settings) -> i32 {
     }
 }
 
-// ====== New PASETO-based functions ======
+// ====== Token-based functions ======
 
 /// Check rate limit using token claims (no DB required)
 pub async fn check_rate_limit_from_claims(

@@ -58,10 +58,10 @@ async fn main() -> anyhow::Result<()> {
     billing::init_redis().await?;
     info!("Redis connection for billing initialized");
 
-    // Initialize PASETO validator
-    info!("Initializing PASETO validator...");
-    auth::init_paseto_validator().await?;
-    info!("PASETO validator initialized");
+    // Initialize token validator
+    info!("Initializing token validator...");
+    auth::init_token_validator().await?;
+    info!("Token validator initialized");
 
     // Initialize usage buffer with background flush task
     info!("Initializing usage buffer...");
