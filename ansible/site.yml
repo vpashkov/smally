@@ -292,6 +292,8 @@
         owner: "{{ smally_user }}"
         group: "{{ smally_user }}"
         mode: '0600'
+      register: env_file_updated
+      notify: restart smally
 
     - name: Upload systemd service file
       copy:
@@ -348,3 +350,8 @@
       systemd:
         name: nginx
         state: reloaded
+
+    - name: restart smally
+      systemd:
+        name: smally
+        state: restarted
