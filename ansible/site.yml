@@ -308,6 +308,26 @@
         state: started
         enabled: yes
 
+    - name: Check service status
+      command: systemctl status smally
+      register: service_status
+      failed_when: false
+      changed_when: false
+
+    - name: Display service status
+      debug:
+        var: service_status.stdout_lines
+
+    - name: Get service logs
+      command: journalctl -u smally -n 50 --no-pager
+      register: service_logs
+      failed_when: false
+      changed_when: false
+
+    - name: Display service logs
+      debug:
+        var: service_logs.stdout_lines
+
     - name: Wait for API to be healthy
       uri:
         url: "http://localhost:{{ api_port }}/health"
