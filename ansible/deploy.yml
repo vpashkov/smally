@@ -75,11 +75,23 @@
       loop: "{{ shell_scripts.files }}"
       when: shell_scripts.files | length > 0
 
-    - name: Start smally service
+    - name: Upload systemd service file
+      copy:
+        src: "{{ playbook_dir }}/../systemd/smally-binary.service"
+        dest: /etc/systemd/system/smally.service
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and start smally service
       systemd:
         name: smally
         state: started
-        daemon_reload: yes
+        enabled: yes
 
     - name: Wait for API to be healthy
       uri:
