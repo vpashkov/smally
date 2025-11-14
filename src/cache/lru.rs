@@ -1,7 +1,7 @@
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::ptr::NonNull;
-use std::cell::UnsafeCell;
 
 pub struct LruCache<K, V> {
     capacity: usize,

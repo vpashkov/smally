@@ -1,5 +1,5 @@
-use std::process::Command;
 use std::env;
+use std::process::Command;
 
 fn main() {
     // Get git commit hash (try git first, fall back to env var for Docker builds)

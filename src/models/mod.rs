@@ -1,5 +1,6 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, Default, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
@@ -51,11 +52,40 @@ impl<'de> Deserialize<'de> for TierType {
     }
 }
 
-#[allow(dead_code)]
+// ============================================================================
+// Core Models
+// ============================================================================
+
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
     pub id: i64,
     pub email: String,
+    pub name: Option<String>,
+    #[serde(skip_serializing)]
+    pub password_hash: Option<String>,
+    pub tier: TierType, // Kept for backward compatibility
+    pub is_active: bool,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
+#[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
+pub enum OrganizationRole {
+    #[serde(rename = "owner")]
+    Owner,
+    #[serde(rename = "admin")]
+    Admin,
+    #[serde(rename = "member")]
+    Member,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Organization {
+    pub id: i64,
+    pub name: String,
+    pub slug: String,
+    pub owner_id: i64,
     pub tier: TierType,
     pub is_active: bool,
     pub created_at: NaiveDateTime,
@@ -64,11 +94,19 @@ pub struct User {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct OrganizationMember {
+    pub id: i64,
+    pub organization_id: i64,
+    pub user_id: i64,
+    pub role: OrganizationRole,
+    pub created_at: NaiveDateTime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct APIKey {
     pub id: i64,
-    pub user_id: i64,
-    pub key_hash: String,
-    pub key_prefix: String,
+    pub organization_id: i64,
+    pub key_id: Uuid,
     pub name: String,
     pub is_active: bool,
     pub created_at: NaiveDateTime,
@@ -79,8 +117,83 @@ pub struct APIKey {
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Usage {
     pub id: i64,
-    pub user_id: i64,
+    pub organization_id: i64,
+    pub user_id: i64, // Kept for backward compatibility
     pub api_key_id: Option<i64>,
     pub embeddings_count: i32,
     pub timestamp: NaiveDateTime,
+}
+
+// ============================================================================
+// Request/Response DTOs
+// ============================================================================
+
+#[derive(Debug, Deserialize)]
+pub struct CreateUserRequest {
+    pub email: String,
+    pub password: String,
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginRequest {
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthResponse {
+    pub user: UserResponse,
+    pub token: String, // JWT for session management
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserResponse {
+    pub id: i64,
+    pub email: String,
+    pub name: Option<String>,
+    pub is_active: bool,
+    pub created_at: NaiveDateTime,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateOrganizationRequest {
+    pub name: String,
+    pub slug: Option<String>,
+    pub tier: Option<TierType>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OrganizationResponse {
+    pub id: i64,
+    pub name: String,
+    pub slug: String,
+    pub tier: TierType,
+    pub role: OrganizationRole, // Current user's role
+    pub is_active: bool,
+    pub created_at: NaiveDateTime,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateAPIKeyRequest {
+    pub name: String,
+    pub tier: Option<TierType>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct APIKeyResponse {
+    pub id: i64,
+    pub key_id: Uuid,
+    pub name: String,
+    pub is_active: bool,
+    pub created_at: NaiveDateTime,
+    pub last_used_at: Option<NaiveDateTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<String>, // Only included when creating new key
+}
+
+#[derive(Debug, Deserialize)]
+pub struct InviteMemberRequest {
+    pub email: String,
+    pub role: OrganizationRole,
 }

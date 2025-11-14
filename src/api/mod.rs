@@ -1,12 +1,17 @@
 use axum::{
-    extract::Json,
-    http::{HeaderMap, StatusCode},
+    async_trait,
+    extract::{FromRequestParts, Json},
+    http::{request::Parts, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 
 use crate::{auth, billing, cache, config, inference, monitoring};
+
+pub mod api_keys;
+pub mod organizations;
+pub mod users;
 
 #[derive(Debug, Deserialize)]
 pub struct EmbedRequest {
@@ -99,17 +104,15 @@ pub async fn create_embedding_handler(
     let start_time = Instant::now();
 
     // Get authorization header
-    let auth_header = headers
-        .get("authorization")
-        .ok_or(ApiError::Unauthorized("Authorization header is required".to_string()))?;
+    let auth_header = headers.get("authorization").ok_or(ApiError::Unauthorized(
+        "Authorization header is required".to_string(),
+    ))?;
 
     // Convert header value to string - handle both ASCII and UTF-8
-    let auth_str = auth_header
-        .to_str()
-        .unwrap_or_else(|_| {
-            // Try as bytes
-            std::str::from_utf8(auth_header.as_bytes()).unwrap_or("")
-        });
+    let auth_str = auth_header.to_str().unwrap_or_else(|_| {
+        // Try as bytes
+        std::str::from_utf8(auth_header.as_bytes()).unwrap_or("")
+    });
 
     // Extract Bearer token
     let parts: Vec<&str> = auth_str.splitn(2, ' ').collect();
@@ -136,7 +139,9 @@ pub async fn create_embedding_handler(
     }
 
     if req.text.len() > 2000 {
-        return Err(ApiError::BadRequest("Text exceeds 2000 characters".to_string()));
+        return Err(ApiError::BadRequest(
+            "Text exceeds 2000 characters".to_string(),
+        ));
     }
 
     // Get model and cache
@@ -170,7 +175,13 @@ pub async fn create_embedding_handler(
         .map_err(|_| ApiError::InternalError("Failed to check rate limit".to_string()))?;
 
     if !is_allowed {
-        let tier = format!("{:?}", claims.tier().map_err(|_| ApiError::InternalError("Failed to decode tier".to_string()))?).to_lowercase();
+        let tier = format!(
+            "{:?}",
+            claims
+                .tier()
+                .map_err(|_| ApiError::InternalError("Failed to decode tier".to_string()))?
+        )
+        .to_lowercase();
         monitoring::RATE_LIMIT_EXCEEDED
             .with_label_values(&[&tier])
             .inc();
@@ -183,10 +194,10 @@ pub async fn create_embedding_handler(
     }
 
     // Check cache
-    let (embedding, metadata, cached) = if let Some(cached_embedding) = cache.get(&req.text).await
-    {
+    let (embedding, metadata, cached) = if let Some(cached_embedding) = cache.get(&req.text).await {
         monitoring::CACHE_HITS.with_label_values(&["total"]).inc();
-        let model_name = settings.model_name
+        let model_name = settings
+            .model_name
             .split('/')
             .next_back()
             .unwrap_or("unknown")
@@ -204,14 +215,12 @@ pub async fn create_embedding_handler(
         // Generate embedding
         let (embedding, metadata) = {
             let mut model_lock = model.write();
-            model_lock
-                .encode(&req.text, req.normalize)
-                .map_err(|_| {
-                    monitoring::ERROR_COUNT
-                        .with_label_values(&["inference_error"])
-                        .inc();
-                    ApiError::InternalError("Failed to generate embedding".to_string())
-                })?
+            model_lock.encode(&req.text, req.normalize).map_err(|_| {
+                monitoring::ERROR_COUNT
+                    .with_label_values(&["inference_error"])
+                    .inc();
+                ApiError::InternalError("Failed to generate embedding".to_string())
+            })?
         };
 
         // Record inference time
@@ -297,9 +306,13 @@ impl IntoResponse for ApiError {
                 None,
                 reset,
             ),
-            ApiError::InternalError(msg) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "internal_error", msg, None, None)
-            }
+            ApiError::InternalError(msg) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "internal_error",
+                msg,
+                None,
+                None,
+            ),
         };
 
         let error_response = ErrorResponse {
@@ -310,5 +323,42 @@ impl IntoResponse for ApiError {
         };
 
         (status, Json(error_response)).into_response()
+    }
+}
+
+/// Extractor for session authentication
+#[async_trait]
+impl<S> FromRequestParts<S> for auth::session::SessionClaims
+where
+    S: Send + Sync,
+{
+    type Rejection = users::ApiError;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        // Get authorization header
+        let auth_header = parts.headers.get("authorization").ok_or_else(|| {
+            users::ApiError::Unauthorized("Authorization header is required".to_string())
+        })?;
+
+        // Convert header value to string
+        let auth_str = auth_header.to_str().map_err(|_| {
+            users::ApiError::Unauthorized("Invalid authorization header".to_string())
+        })?;
+
+        // Extract Bearer token
+        let parts: Vec<&str> = auth_str.splitn(2, ' ').collect();
+        if parts.len() != 2 || parts[0].to_lowercase() != "bearer" {
+            return Err(users::ApiError::Unauthorized(
+                "Authorization header must be 'Bearer <token>'".to_string(),
+            ));
+        }
+
+        let token = parts[1];
+
+        // Verify session token
+        let claims = auth::session::verify_session_token(token)
+            .map_err(|e| users::ApiError::Unauthorized(format!("Invalid session token: {}", e)))?;
+
+        Ok(claims)
     }
 }

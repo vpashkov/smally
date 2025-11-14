@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 
 // Note: These benchmarks require:
 // 1. Model files downloaded (`make model`)
@@ -14,7 +14,10 @@ fn bench_embedding_generation(c: &mut Criterion) {
     // Check if model directory exists
     let model_path = std::path::Path::new("models/all-MiniLM-L6-v2-onnx");
     if !model_path.exists() {
-        eprintln!("Model not found at {:?}. Run `make model` to download it.", model_path);
+        eprintln!(
+            "Model not found at {:?}. Run `make model` to download it.",
+            model_path
+        );
         eprintln!("Skipping inference benchmarks.");
         return;
     }
@@ -40,15 +43,9 @@ fn bench_embedding_generation(c: &mut Criterion) {
     ];
 
     for (name, text) in test_cases {
-        group.bench_with_input(
-            BenchmarkId::from_parameter(name),
-            &text,
-            |b, text| {
-                b.iter(|| {
-                    model.encode(black_box(text), black_box(true))
-                })
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(name), &text, |b, text| {
+            b.iter(|| model.encode(black_box(text), black_box(true)))
+        });
     }
 
     group.finish();
@@ -84,9 +81,5 @@ fn bench_normalize_impact(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(
-    benches,
-    bench_embedding_generation,
-    bench_normalize_impact
-);
+criterion_group!(benches, bench_embedding_generation, bench_normalize_impact);
 criterion_main!(benches);

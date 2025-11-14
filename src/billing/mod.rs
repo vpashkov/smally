@@ -107,11 +107,14 @@ impl UsageBuffer {
 
 // Initialize global usage buffer
 pub fn init_usage_buffer(pool: &'static PgPool) -> Result<()> {
+    // If already initialized, return early
+    if USAGE_BUFFER.get().is_some() {
+        return Ok(());
+    }
+
     let buffer = Arc::new(UsageBuffer::new(pool));
     buffer.clone().start_flush_task();
-    USAGE_BUFFER
-        .set(buffer)
-        .map_err(|_| anyhow::anyhow!("Usage buffer already initialized"))?;
+    USAGE_BUFFER.set(buffer).ok(); // Ignore error if already set
     info!("Usage buffer initialized with 5-second flush interval");
     Ok(())
 }
@@ -123,12 +126,15 @@ pub fn get_usage_buffer() -> &'static Arc<UsageBuffer> {
 
 // Initialize global Redis connection for rate limiting
 pub async fn init_redis() -> Result<()> {
+    // If already initialized, return early
+    if REDIS_CONNECTION.get().is_some() {
+        return Ok(());
+    }
+
     let settings = config::get_settings();
     let redis_client = redis::Client::open(settings.redis_url.as_str())?;
     let conn = ConnectionManager::new(redis_client).await?;
-    REDIS_CONNECTION
-        .set(conn)
-        .map_err(|_| anyhow::anyhow!("Redis connection already initialized"))?;
+    REDIS_CONNECTION.set(conn).ok(); // Ignore error if already set
     info!("Redis connection for billing initialized");
     Ok(())
 }
@@ -381,7 +387,10 @@ pub async fn check_rate_limit_from_claims(
         }
         TierType::Free => {
             // Free tier: check Redis quota
-            info!("Checking rate limit for free tier user {}", claims.user_id());
+            info!(
+                "Checking rate limit for free tier user {}",
+                claims.user_id()
+            );
             check_rate_limit_redis_from_claims(claims).await
         }
     }
@@ -403,7 +412,8 @@ async fn check_rate_limit_redis_from_claims(
 
     info!(
         "Redis rate limit check: user {} count {}",
-        claims.user_id(), count
+        claims.user_id(),
+        count
     );
 
     // Calculate month end for reset_at

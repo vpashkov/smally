@@ -1,7 +1,5 @@
 use once_cell::sync::Lazy;
-use prometheus::{
-    register_counter_vec, register_histogram, CounterVec, Histogram,
-};
+use prometheus::{register_counter_vec, register_histogram, CounterVec, Histogram};
 
 pub static REQUEST_COUNT: Lazy<CounterVec> = Lazy::new(|| {
     register_counter_vec!(
@@ -40,11 +38,8 @@ pub static CACHE_HITS: Lazy<CounterVec> = Lazy::new(|| {
 });
 
 pub static CACHE_MISSES: Lazy<prometheus::Counter> = Lazy::new(|| {
-    prometheus::register_counter!(
-        "smally_cache_misses_total",
-        "Total number of cache misses"
-    )
-    .unwrap()
+    prometheus::register_counter!("smally_cache_misses_total", "Total number of cache misses")
+        .unwrap()
 });
 
 pub static TOKEN_COUNT: Lazy<Histogram> = Lazy::new(|| {

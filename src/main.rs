@@ -29,9 +29,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_max_level(Level::INFO)
-        .init();
+    tracing_subscriber::fmt().with_max_level(Level::INFO).init();
 
     info!("Starting Smally API...");
 
@@ -80,14 +78,51 @@ async fn main() -> anyhow::Result<()> {
 
     // Setup routes
     let app = Router::new()
+        // Embedding API (CWT token authentication)
         .route("/v1/embed", post(api::create_embedding_handler))
+        // User authentication (no auth required)
+        .route("/v1/auth/register", post(api::users::register_handler))
+        .route("/v1/auth/login", post(api::users::login_handler))
+        // User profile (JWT session required)
+        .route("/v1/users/me", get(api::users::get_profile_handler))
+        // Organization management (JWT session required)
+        .route(
+            "/v1/organizations",
+            post(api::organizations::create_organization_handler),
+        )
+        .route(
+            "/v1/organizations",
+            get(api::organizations::list_organizations_handler),
+        )
+        .route(
+            "/v1/organizations/:org_id",
+            get(api::organizations::get_organization_handler),
+        )
+        .route(
+            "/v1/organizations/:org_id/members",
+            post(api::organizations::invite_member_handler),
+        )
+        // API key management (JWT session required)
+        .route(
+            "/v1/organizations/:org_id/keys",
+            post(api::api_keys::create_api_key_handler),
+        )
+        .route(
+            "/v1/organizations/:org_id/keys",
+            get(api::api_keys::list_api_keys_handler),
+        )
+        .route(
+            "/v1/organizations/:org_id/keys/:key_id",
+            axum::routing::delete(api::api_keys::revoke_api_key_handler),
+        )
+        // Health and metrics
         .route("/health", get(api::health_handler))
         .route("/metrics", get(metrics_handler))
         .route("/", get(api::root_handler))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
-                .on_response(DefaultOnResponse::new().level(Level::INFO))
+                .on_response(DefaultOnResponse::new().level(Level::INFO)),
         )
         .layer(cors);
 

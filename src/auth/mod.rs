@@ -17,6 +17,8 @@ use uuid::Uuid;
 use crate::config;
 use crate::models::TierType;
 
+pub mod session;
+
 /// CBOR-encoded token data (ultra-compact binary format with fixed-length fields)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenData {
@@ -502,6 +504,11 @@ static TOKEN_VALIDATOR: once_cell::sync::OnceCell<TokenValidator> =
 
 /// Initialize the global token validator
 pub async fn init_token_validator() -> Result<()> {
+    // If already initialized, return early
+    if TOKEN_VALIDATOR.get().is_some() {
+        return Ok(());
+    }
+
     let settings = config::get_settings();
 
     // Get Redis connection
@@ -516,9 +523,7 @@ pub async fn init_token_validator() -> Result<()> {
     )
     .await?;
 
-    TOKEN_VALIDATOR
-        .set(validator)
-        .map_err(|_| anyhow::anyhow!("Token validator already initialized"))?;
+    TOKEN_VALIDATOR.set(validator).ok(); // Ignore error if already set
 
     info!("Token validator initialized");
     Ok(())

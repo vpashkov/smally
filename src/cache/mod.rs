@@ -80,9 +80,7 @@ impl EmbeddingCache {
         let ttl = self.l2_cache_ttl;
         let mut client = self.redis_client.clone();
         tokio::spawn(async move {
-            let _ = client
-                .set_ex::<_, _, ()>(&cache_key, serialized, ttl)
-                .await;
+            let _ = client.set_ex::<_, _, ()>(&cache_key, serialized, ttl).await;
         });
     }
 
@@ -102,10 +100,7 @@ impl EmbeddingCache {
     }
 
     fn serialize_embedding(embedding: &[f32]) -> Vec<u8> {
-        embedding
-            .iter()
-            .flat_map(|&f| f.to_le_bytes())
-            .collect()
+        embedding.iter().flat_map(|&f| f.to_le_bytes()).collect()
     }
 
     fn deserialize_embedding(data: &[u8]) -> Option<Vec<f32>> {
@@ -124,10 +119,13 @@ impl EmbeddingCache {
 }
 
 pub async fn init_cache() -> Result<()> {
+    // If already initialized, return early
+    if CACHE.get().is_some() {
+        return Ok(());
+    }
+
     let cache = EmbeddingCache::new().await?;
-    CACHE
-        .set(cache)
-        .map_err(|_| anyhow::anyhow!("Cache already initialized"))?;
+    CACHE.set(cache).ok(); // Ignore error if already set
     Ok(())
 }
 

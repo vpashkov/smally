@@ -3,10 +3,7 @@ pub mod tokenizer;
 use anyhow::Result;
 use ndarray::Array2;
 use once_cell::sync::OnceCell;
-use ort::{
-    session::Session,
-    value::Value,
-};
+use ort::{session::Session, value::Value};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -77,20 +74,13 @@ impl EmbeddingModel {
         let batch_size = 1usize;
         let seq_len = encoding.input_ids.len();
 
-        let input_ids = Array2::from_shape_vec(
-            (batch_size, seq_len),
-            encoding.input_ids.clone(),
-        )?;
+        let input_ids = Array2::from_shape_vec((batch_size, seq_len), encoding.input_ids.clone())?;
 
-        let attention_mask = Array2::from_shape_vec(
-            (batch_size, seq_len),
-            encoding.attention_mask.clone(),
-        )?;
+        let attention_mask =
+            Array2::from_shape_vec((batch_size, seq_len), encoding.attention_mask.clone())?;
 
-        let token_type_ids = Array2::from_shape_vec(
-            (batch_size, seq_len),
-            encoding.token_type_ids.clone(),
-        )?;
+        let token_type_ids =
+            Array2::from_shape_vec((batch_size, seq_len), encoding.token_type_ids.clone())?;
 
         // Convert arrays to Vec and create ORT Values
         let (input_ids_vec, _) = input_ids.into_raw_vec_and_offset();
@@ -109,8 +99,7 @@ impl EmbeddingModel {
         ])?;
 
         // Extract output - returns (shape, data)
-        let (_shape, output_data) = outputs["last_hidden_state"]
-            .try_extract_tensor::<f32>()?;
+        let (_shape, output_data) = outputs["last_hidden_state"].try_extract_tensor::<f32>()?;
 
         // Mean pooling and L2 normalization (as standalone functions to avoid self borrow)
         let mut embedding = vec![0.0f32; embedding_dim];
@@ -160,10 +149,13 @@ impl EmbeddingModel {
 }
 
 pub fn init_model() -> Result<()> {
+    // If already initialized, return early
+    if MODEL.get().is_some() {
+        return Ok(());
+    }
+
     let model = EmbeddingModel::new()?;
-    MODEL
-        .set(RwLock::new(model))
-        .map_err(|_| anyhow::anyhow!("Model already initialized"))?;
+    MODEL.set(RwLock::new(model)).ok(); // Ignore error if already set
     Ok(())
 }
 

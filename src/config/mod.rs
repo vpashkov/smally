@@ -39,6 +39,7 @@ pub struct Settings {
     pub token_public_key: String,
     #[allow(dead_code)]
     pub token_private_key: String,
+    pub jwt_secret: String,
 
     // Rate Limiting
     #[allow(dead_code)]
@@ -86,6 +87,10 @@ impl Settings {
             api_key_prefix: get_env("API_KEY_PREFIX", "fe_"),
             token_public_key: get_env("TOKEN_PUBLIC_KEY", ""),
             token_private_key: get_env("TOKEN_PRIVATE_KEY", ""),
+            jwt_secret: get_env(
+                "JWT_SECRET",
+                "change-this-to-a-secure-random-key-in-production-jwt",
+            ),
 
             free_tier_limit: get_env_int("FREE_TIER_LIMIT", 20000),
             pro_tier_limit: get_env_int("PRO_TIER_LIMIT", 100000),
