@@ -138,7 +138,49 @@
         state: present
 
     # ========================================
-    # 3. REDIS SETUP
+    # 3. NGINX SETUP
+    # ========================================
+
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+
+    - name: Remove default Nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Upload Nginx configuration
+      copy:
+        src: "{{ playbook_dir }}/../nginx/conf.d/smally-binary.conf"
+        dest: /etc/nginx/sites-available/smally
+        owner: root
+        group: root
+        mode: '0644'
+      notify: reload nginx
+
+    - name: Enable Nginx site
+      file:
+        src: /etc/nginx/sites-available/smally
+        dest: /etc/nginx/sites-enabled/smally
+        state: link
+      notify: reload nginx
+
+    - name: Test Nginx configuration
+      command: nginx -t
+      register: nginx_test
+      changed_when: false
+      failed_when: nginx_test.rc != 0
+
+    - name: Ensure Nginx is started
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+
+    # ========================================
+    # 4. REDIS SETUP
     # ========================================
 
     - name: Install Redis
@@ -301,3 +343,8 @@
       systemd:
         name: redis-server
         state: restarted
+
+    - name: reload nginx
+      systemd:
+        name: nginx
+        state: reloaded
