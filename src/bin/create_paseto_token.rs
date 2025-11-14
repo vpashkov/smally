@@ -1,9 +1,6 @@
-use api::auth::TokenData;
+use api::auth::{sign_token_direct, TokenData};
 use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
-use rusty_paseto::core::{Key, PasetoAsymmetricPrivateKey, Public, V4};
-use rusty_paseto::generic::GenericBuilder;
-use rusty_paseto::prelude::CustomClaim;
 use std::env;
 
 fn main() {
@@ -65,23 +62,6 @@ fn main() {
     // Create token claims (long-lived: 5 years)
     let now = Utc::now();
     let exp = now + Duration::days(365 * 5);
-
-    // Create PASETO private key (64 bytes = 32 private + 32 public)
-    let verifying_bytes = signing_key.verifying_key().to_bytes();
-    let mut full_key = [0u8; 64];
-    full_key[..32].copy_from_slice(&signing_key.to_bytes());
-    full_key[32..].copy_from_slice(&verifying_bytes);
-
-    let key = Key::<64>::try_from(&full_key[..]).unwrap();
-    let private_key = PasetoAsymmetricPrivateKey::<V4, Public>::from(&key);
-
-    /*
-    Build and sign token with CBOR-encoded data for maximum compactness.
-    - Serialize all claims into a single TokenData struct
-    - Encode with CBOR (binary format)
-    - Base64 encode the CBOR bytes
-    - Store in a single "d" (data) claim
-    */
     let exp_timestamp = exp.timestamp();
 
     let token_data = TokenData {
@@ -93,19 +73,10 @@ fn main() {
         q: monthly_quota as i32,
     };
 
-    // Encode to CBOR
-    let mut cbor_bytes = Vec::new();
-    ciborium::into_writer(&token_data, &mut cbor_bytes).unwrap();
+    // Sign token directly with Ed25519 (no PASETO overhead)
+    let token = sign_token_direct(&token_data, &signing_key).unwrap();
 
-    // Base64 encode the CBOR bytes
-    let data_base64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &cbor_bytes);
-
-    let token = GenericBuilder::<V4, Public>::default()
-        .set_claim(CustomClaim::try_from(("d", data_base64)).unwrap())
-        .try_sign(&private_key)
-        .unwrap();
-
-    println!("\n=== PASETO Token Generated ===\n");
+    println!("\n=== Direct Signed Token Generated ===\n");
     println!("User ID: {}", user_id);
     println!("Tier: {}", tier);
     println!("Key ID: {}", key_id);

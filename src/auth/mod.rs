@@ -3,8 +3,6 @@ use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
-use rusty_paseto::core::{Key, PasetoAsymmetricPublicKey, Public, V4};
-use rusty_paseto::prelude::PasetoParser;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -44,20 +42,16 @@ impl TokenClaims {
         Self { data }
     }
 
-    /// Encode to CBOR and base64 for storage in PASETO
-    pub fn encode_for_paseto(&self) -> Result<String, anyhow::Error> {
+    /// Get CBOR-encoded bytes
+    pub fn to_cbor_bytes(&self) -> Result<Vec<u8>, anyhow::Error> {
         let mut cbor_bytes = Vec::new();
         ciborium::into_writer(&self.data, &mut cbor_bytes)?;
-        Ok(base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &cbor_bytes))
+        Ok(cbor_bytes)
     }
 
-    /// Decode from base64 CBOR data
-    pub fn decode_from_paseto(data_base64: &str) -> Result<Self, anyhow::Error> {
-        let cbor_bytes = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            data_base64,
-        )?;
-        let data: TokenData = ciborium::from_reader(&cbor_bytes[..])?;
+    /// Decode from CBOR bytes
+    pub fn from_cbor_bytes(cbor_bytes: &[u8]) -> Result<Self, anyhow::Error> {
+        let data: TokenData = ciborium::from_reader(cbor_bytes)?;
         Ok(Self { data })
     }
 
@@ -91,6 +85,76 @@ impl TokenClaims {
     pub fn monthly_quota(&self) -> i32 {
         self.data.q
     }
+}
+
+/// Sign token data with Ed25519 (direct approach, no PASETO overhead)
+/// Format: version(1 byte) + cbor_bytes + signature(64 bytes) → base64
+pub fn sign_token_direct(
+    token_data: &TokenData,
+    signing_key: &ed25519_dalek::SigningKey,
+) -> Result<String, anyhow::Error> {
+    // Encode to CBOR
+    let mut cbor_bytes = Vec::new();
+    ciborium::into_writer(token_data, &mut cbor_bytes)?;
+
+    // Prepare data to sign: version + CBOR
+    const VERSION: u8 = 1;
+    let mut data_to_sign = vec![VERSION];
+    data_to_sign.extend_from_slice(&cbor_bytes);
+
+    // Sign with Ed25519
+    use ed25519_dalek::Signer;
+    let signature = signing_key.sign(&data_to_sign);
+
+    // Build final token: version + cbor + signature
+    let mut token_bytes = data_to_sign;
+    token_bytes.extend_from_slice(&signature.to_bytes());
+
+    // Base64 encode
+    let token_base64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &token_bytes);
+
+    Ok(format!("v1:{}", token_base64))
+}
+
+/// Verify and decode directly signed token
+pub fn verify_token_direct(
+    token: &str,
+    verifying_key: &ed25519_dalek::VerifyingKey,
+) -> Result<TokenClaims, anyhow::Error> {
+    // Remove v1: prefix
+    if !token.starts_with("v1:") {
+        return Err(anyhow!("Invalid token format, expected v1: prefix"));
+    }
+    let token_base64 = &token[3..];
+
+    // Decode base64
+    let token_bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, token_base64)?;
+
+    // Minimum size: version(1) + cbor(min 10) + signature(64) = 75 bytes
+    if token_bytes.len() < 75 {
+        return Err(anyhow!("Token too short"));
+    }
+
+    // Extract components
+    let version = token_bytes[0];
+    if version != 1 {
+        return Err(anyhow!("Unsupported token version: {}", version));
+    }
+
+    let signature_start = token_bytes.len() - 64;
+    let data_bytes = &token_bytes[..signature_start]; // version + cbor
+    let signature_bytes = &token_bytes[signature_start..];
+
+    // Verify signature
+    use ed25519_dalek::Verifier;
+    let signature = ed25519_dalek::Signature::from_bytes(signature_bytes.try_into()?);
+    verifying_key.verify(data_bytes, &signature)?;
+
+    // Extract CBOR (skip version byte)
+    let cbor_bytes = &data_bytes[1..];
+
+    // Decode CBOR to TokenClaims
+    TokenClaims::from_cbor_bytes(cbor_bytes)
 }
 
 // Keep TokenLimits for compatibility with billing module
@@ -138,10 +202,14 @@ impl PasetoValidator {
         })
     }
 
-    /// Validate a PASETO token with stale-while-revalidate revocation checking
+    /// Validate a directly signed token with stale-while-revalidate revocation checking
     pub async fn validate(&self, token: &str) -> Result<TokenClaims> {
-        // Step 1: Verify PASETO signature (~10μs, no network)
-        let claims = self.verify_token(token)?;
+        // Step 1: Verify Ed25519 signature (~10μs, no network)
+        let verifying_key = ed25519_dalek::VerifyingKey::from_bytes(
+            &self.public_key[..].try_into()
+                .map_err(|_| anyhow!("Invalid public key length"))?
+        )?;
+        let claims = verify_token_direct(token, &verifying_key)?;
 
         // Step 2: Check expiration
         if claims.exp()? < Utc::now() {
@@ -220,27 +288,6 @@ impl PasetoValidator {
         }
     }
 
-    /// Verify PASETO token signature and decode claims
-    fn verify_token(&self, token: &str) -> Result<TokenClaims> {
-        // Convert bytes to array and create public key
-        let key_bytes: [u8; 32] = self.public_key[..].try_into()?;
-        let key = Key::<32>::try_from(&key_bytes[..])?;
-        let public_key = PasetoAsymmetricPublicKey::<V4, Public>::from(&key);
-
-        // Parse and verify token
-        let verified_payload = PasetoParser::<V4, Public>::default().parse(token, &public_key)?;
-
-        // Extract the "d" claim which contains base64-encoded CBOR data
-        let data_base64 = verified_payload
-            .get("d")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow!("Missing 'd' claim in token"))?;
-
-        // Decode CBOR data
-        let claims = TokenClaims::decode_from_paseto(data_base64)?;
-
-        Ok(claims)
-    }
 
     /// Check if a key is revoked in Redis
     async fn check_redis_revocation(&self, key_id: &str) -> Result<bool> {
