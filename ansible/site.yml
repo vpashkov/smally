@@ -55,6 +55,7 @@
           - ufw
           - ca-certificates
           - gnupg
+          - file
         state: present
 
     - name: Install ONNX Runtime dependencies
@@ -291,10 +292,12 @@
       command: file {{ smally_app_dir }}/api
       register: binary_info
       changed_when: false
+      failed_when: false
 
     - name: Display binary info
       debug:
         var: binary_info.stdout
+      when: binary_info.rc == 0
 
     - name: Check binary dependencies
       command: ldd {{ smally_app_dir }}/api
@@ -305,13 +308,15 @@
     - name: Display binary dependencies
       debug:
         var: binary_deps.stdout_lines
+      when: binary_deps.rc == 0
 
     - name: Test binary execution manually
-      command: "{{ smally_app_dir }}/api --help"
+      command: "{{ smally_app_dir }}/api --version"
       become_user: "{{ smally_user }}"
       register: binary_test
       changed_when: false
       failed_when: false
+      timeout: 5
       environment:
         DATABASE_URL: "postgresql://{{ postgres_user }}:{{ postgres_password }}@localhost/{{ postgres_db }}"
         REDIS_URL: "redis://{{ redis_bind }}:{{ redis_port }}"
@@ -319,6 +324,7 @@
     - name: Display binary test result
       debug:
         var: binary_test
+      when: binary_test.rc is defined
 
     - name: Upload scripts
       synchronize:
