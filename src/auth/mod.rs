@@ -88,7 +88,8 @@ impl TokenClaims {
 }
 
 /// Sign token data with Ed25519 (direct approach, no PASETO overhead)
-/// Format: base64(version(1 byte) + cbor_bytes + signature(64 bytes))
+/// Format: base64(version(1) + cbor_length(4) + cbor_data + signature(64))
+/// Length-prefixed format prevents signature malleability attacks
 pub fn sign_token_direct(
     token_data: &TokenData,
     signing_key: &ed25519_dalek::SigningKey,
@@ -97,24 +98,32 @@ pub fn sign_token_direct(
     let mut cbor_bytes = Vec::new();
     ciborium::into_writer(token_data, &mut cbor_bytes)?;
 
-    // Prepare data to sign: version + CBOR
+    // Prepare data to sign: version + length + CBOR
     const VERSION: u8 = 1;
-    let mut data_to_sign = vec![VERSION];
+    let cbor_len = cbor_bytes.len() as u32;
+
+    let mut data_to_sign = Vec::with_capacity(1 + 4 + cbor_bytes.len());
+    data_to_sign.push(VERSION);
+    data_to_sign.extend_from_slice(&cbor_len.to_be_bytes()); // Big-endian for consistency
     data_to_sign.extend_from_slice(&cbor_bytes);
 
     // Sign with Ed25519
     use ed25519_dalek::Signer;
     let signature = signing_key.sign(&data_to_sign);
 
-    // Build final token: version + cbor + signature
+    // Build final token: version + length + cbor + signature
     let mut token_bytes = data_to_sign;
     token_bytes.extend_from_slice(&signature.to_bytes());
 
     // Base64 encode (no prefix needed - version is first byte after decoding)
-    Ok(base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &token_bytes))
+    Ok(base64::Engine::encode(
+        &base64::engine::general_purpose::STANDARD,
+        &token_bytes,
+    ))
 }
 
 /// Verify and decode directly signed token
+/// Validates structure, signature, and decodes payload
 pub fn verify_token_direct(
     token: &str,
     verifying_key: &ed25519_dalek::VerifyingKey,
@@ -122,30 +131,50 @@ pub fn verify_token_direct(
     // Decode base64 (no prefix - version is embedded as first byte)
     let token_bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, token)?;
 
-    // Minimum size: version(1) + cbor(min 10) + signature(64) = 75 bytes
-    if token_bytes.len() < 75 {
+    // Minimum size: version(1) + length(4) + cbor(min 10) + signature(64) = 79 bytes
+    if token_bytes.len() < 79 {
         return Err(anyhow!("Token too short"));
     }
 
-    // Extract components
+    // Extract version
     let version = token_bytes[0];
     if version != 1 {
         return Err(anyhow!("Unsupported token version: {}", version));
     }
 
-    let signature_start = token_bytes.len() - 64;
-    let data_bytes = &token_bytes[..signature_start]; // version + cbor
-    let signature_bytes = &token_bytes[signature_start..];
+    // Extract CBOR length (big-endian u32)
+    let cbor_len = u32::from_be_bytes([
+        token_bytes[1],
+        token_bytes[2],
+        token_bytes[3],
+        token_bytes[4],
+    ]) as usize;
 
-    // Verify signature
+    // Validate token structure: version(1) + length(4) + cbor(cbor_len) + signature(64)
+    let expected_len = 1 + 4 + cbor_len + 64;
+    if token_bytes.len() != expected_len {
+        return Err(anyhow!(
+            "Invalid token structure: expected {} bytes, got {}",
+            expected_len,
+            token_bytes.len()
+        ));
+    }
+
+    // Extract components using the declared length
+    let cbor_start = 5;
+    let cbor_end = cbor_start + cbor_len;
+    let signature_start = cbor_end;
+
+    let data_bytes = &token_bytes[..signature_start]; // version + length + cbor
+    let signature_bytes = &token_bytes[signature_start..signature_start + 64];
+    let cbor_bytes = &token_bytes[cbor_start..cbor_end];
+
+    // Verify signature BEFORE deserializing CBOR (defense in depth)
     use ed25519_dalek::Verifier;
     let signature = ed25519_dalek::Signature::from_bytes(signature_bytes.try_into()?);
     verifying_key.verify(data_bytes, &signature)?;
 
-    // Extract CBOR (skip version byte)
-    let cbor_bytes = &data_bytes[1..];
-
-    // Decode CBOR to TokenClaims
+    // Only decode CBOR after signature verification passes
     TokenClaims::from_cbor_bytes(cbor_bytes)
 }
 
@@ -198,8 +227,9 @@ impl PasetoValidator {
     pub async fn validate(&self, token: &str) -> Result<TokenClaims> {
         // Step 1: Verify Ed25519 signature (~10μs, no network)
         let verifying_key = ed25519_dalek::VerifyingKey::from_bytes(
-            &self.public_key[..].try_into()
-                .map_err(|_| anyhow!("Invalid public key length"))?
+            &self.public_key[..]
+                .try_into()
+                .map_err(|_| anyhow!("Invalid public key length"))?,
         )?;
         let claims = verify_token_direct(token, &verifying_key)?;
 
@@ -279,7 +309,6 @@ impl PasetoValidator {
             Ok(claims)
         }
     }
-
 
     /// Check if a key is revoked in Redis
     async fn check_redis_revocation(&self, key_id: &str) -> Result<bool> {
