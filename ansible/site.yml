@@ -57,6 +57,47 @@
           - gnupg
         state: present
 
+    - name: Install ONNX Runtime dependencies
+      apt:
+        name:
+          - libgomp1
+          - libstdc++6
+        state: present
+
+    - name: Check if ONNX Runtime is installed
+      stat:
+        path: /usr/local/lib/libonnxruntime.so
+      register: onnx_installed
+
+    - name: Download ONNX Runtime (ARM64)
+      get_url:
+        url: https://github.com/microsoft/onnxruntime/releases/download/v1.16.3/onnxruntime-linux-aarch64-1.16.3.tgz
+        dest: /tmp/onnxruntime.tgz
+        mode: '0644'
+      when: not onnx_installed.stat.exists
+
+    - name: Extract ONNX Runtime
+      unarchive:
+        src: /tmp/onnxruntime.tgz
+        dest: /tmp
+        remote_src: yes
+      when: not onnx_installed.stat.exists
+
+    - name: Install ONNX Runtime libraries
+      shell: |
+        cp /tmp/onnxruntime-linux-aarch64-1.16.3/lib/* /usr/local/lib/
+        ldconfig
+      when: not onnx_installed.stat.exists
+
+    - name: Cleanup ONNX Runtime download
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/onnxruntime.tgz
+        - /tmp/onnxruntime-linux-aarch64-1.16.3
+      when: not onnx_installed.stat.exists
+
     - name: Create smally user
       user:
         name: "{{ smally_user }}"
@@ -245,6 +286,39 @@
       loop:
         - api
         - create_api_key
+
+    - name: Check binary file info
+      command: file {{ smally_app_dir }}/api
+      register: binary_info
+      changed_when: false
+
+    - name: Display binary info
+      debug:
+        var: binary_info.stdout
+
+    - name: Check binary dependencies
+      command: ldd {{ smally_app_dir }}/api
+      register: binary_deps
+      changed_when: false
+      failed_when: false
+
+    - name: Display binary dependencies
+      debug:
+        var: binary_deps.stdout_lines
+
+    - name: Test binary execution manually
+      command: "{{ smally_app_dir }}/api --help"
+      become_user: "{{ smally_user }}"
+      register: binary_test
+      changed_when: false
+      failed_when: false
+      environment:
+        DATABASE_URL: "postgresql://{{ postgres_user }}:{{ postgres_password }}@localhost/{{ postgres_db }}"
+        REDIS_URL: "redis://{{ redis_bind }}:{{ redis_port }}"
+
+    - name: Display binary test result
+      debug:
+        var: binary_test
 
     - name: Upload scripts
       synchronize:
