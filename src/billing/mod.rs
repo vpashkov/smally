@@ -367,14 +367,15 @@ pub async fn check_rate_limit_from_claims(
     claims: &TokenClaims,
 ) -> Result<(bool, HashMap<String, String>)> {
     // Skip rate limiting for paid tiers (they use pay-as-you-go)
-    match claims.tier {
+    let tier = claims.tier()?;
+    match tier {
         TierType::Pro | TierType::Scale => {
-            info!("Skipping rate limit check for paid tier: {:?}", claims.tier);
+            info!("Skipping rate limit check for paid tier: {:?}", tier);
             Ok((true, HashMap::new()))
         }
         TierType::Free => {
             // Free tier: check Redis quota
-            info!("Checking rate limit for free tier user {}", claims.user_id);
+            info!("Checking rate limit for free tier user {}", claims.user_id());
             check_rate_limit_redis_from_claims(claims).await
         }
     }
@@ -389,14 +390,14 @@ async fn check_rate_limit_redis_from_claims(
 
     // Get current month for key
     let now = Utc::now();
-    let month_key = format!("ratelimit:{}:{}", claims.user_id, now.format("%Y-%m"));
+    let month_key = format!("ratelimit:{}:{}", claims.user_id(), now.format("%Y-%m"));
 
     // Get current count from Redis
     let count: i64 = conn.get(&month_key).await.unwrap_or(0);
 
     info!(
         "Redis rate limit check: user {} count {}",
-        claims.user_id, count
+        claims.user_id(), count
     );
 
     // Calculate month end for reset_at
@@ -410,7 +411,7 @@ async fn check_rate_limit_redis_from_claims(
         .ok_or_else(|| anyhow!("Invalid time"))?;
 
     // Get limit from token (embedded in token, no config needed!)
-    let limit = claims.monthly_quota as i64;
+    let limit = claims.monthly_quota() as i64;
 
     // Check if exceeded
     let is_allowed = count < limit;
@@ -430,10 +431,10 @@ async fn check_rate_limit_redis_from_claims(
 
 /// Increment usage using token claims (no DB needed for lookup)
 pub async fn increment_usage_from_claims(claims: &TokenClaims) -> Result<()> {
-    let user_id = claims.user_id;
+    let user_id = claims.user_id();
     // For API key ID, we'll hash the key_id from the token
-    let api_key_id = hash_key_id(&claims.key_id);
-    let tier = claims.tier.clone();
+    let api_key_id = hash_key_id(claims.key_id());
+    let tier = claims.tier()?;
 
     // Only increment Redis counter for free tier (they have quotas)
     match tier {

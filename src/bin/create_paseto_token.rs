@@ -1,3 +1,4 @@
+use api::auth::TokenData;
 use chrono::{Duration, Utc};
 use ed25519_dalek::SigningKey;
 use rusty_paseto::core::{Key, PasetoAsymmetricPrivateKey, Public, V4};
@@ -75,20 +76,32 @@ fn main() {
     let private_key = PasetoAsymmetricPrivateKey::<V4, Public>::from(&key);
 
     /*
-    Build and sign token with compact claims (single-letter keys).
-    Using GenericBuilder to avoid auto-added iat/nbf claims.
-    Use "e" instead of reserved "exp" to allow Unix timestamp.
-    Flatten all fields to top level to avoid nested JSON structure.
+    Build and sign token with CBOR-encoded data for maximum compactness.
+    - Serialize all claims into a single TokenData struct
+    - Encode with CBOR (binary format)
+    - Base64 encode the CBOR bytes
+    - Store in a single "d" (data) claim
     */
     let exp_timestamp = exp.timestamp();
 
+    let token_data = TokenData {
+        e: exp_timestamp,
+        u: user_id,
+        k: key_id.to_string(),
+        t: tier.to_string(),
+        m: max_tokens as i32,
+        q: monthly_quota as i32,
+    };
+
+    // Encode to CBOR
+    let mut cbor_bytes = Vec::new();
+    ciborium::into_writer(&token_data, &mut cbor_bytes).unwrap();
+
+    // Base64 encode the CBOR bytes
+    let data_base64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &cbor_bytes);
+
     let token = GenericBuilder::<V4, Public>::default()
-        .set_claim(CustomClaim::try_from(("e", exp_timestamp)).unwrap())
-        .set_claim(CustomClaim::try_from(("u", user_id as i64)).unwrap())
-        .set_claim(CustomClaim::try_from(("k", key_id.to_string())).unwrap())
-        .set_claim(CustomClaim::try_from(("t", tier.to_string())).unwrap())
-        .set_claim(CustomClaim::try_from(("m", max_tokens as i64)).unwrap())
-        .set_claim(CustomClaim::try_from(("q", monthly_quota as i64)).unwrap())
+        .set_claim(CustomClaim::try_from(("d", data_base64)).unwrap())
         .try_sign(&private_key)
         .unwrap();
 

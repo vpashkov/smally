@@ -170,7 +170,7 @@ pub async fn create_embedding_handler(
         .map_err(|_| ApiError::InternalError("Failed to check rate limit".to_string()))?;
 
     if !is_allowed {
-        let tier = format!("{:?}", claims.tier).to_lowercase();
+        let tier = format!("{:?}", claims.tier().map_err(|_| ApiError::InternalError("Failed to decode tier".to_string()))?).to_lowercase();
         monitoring::RATE_LIMIT_EXCEEDED
             .with_label_values(&[&tier])
             .inc();

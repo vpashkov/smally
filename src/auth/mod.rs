@@ -14,45 +14,90 @@ use tracing::{info, warn};
 use crate::config;
 use crate::models::TierType;
 
-/// PASETO token claims (compact format)
+/// CBOR-encoded token data (ultra-compact binary format)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenClaims {
-    /// User ID
-    #[serde(rename = "u")]
-    pub user_id: i64,
-    /// API key ID (for revocation tracking)
-    #[serde(rename = "k")]
-    pub key_id: String,
-    /// User tier (0=Free, 1=Pro, 2=Scale)
-    #[serde(rename = "t")]
-    pub tier: TierType,
+pub struct TokenData {
     /// Expiration time (Unix timestamp)
-    #[serde(rename = "e", with = "chrono::serde::ts_seconds")]
-    pub exp: DateTime<Utc>,
-    /// Max tokens (flattened from limits)
-    #[serde(rename = "m")]
-    pub max_tokens: usize,
-    /// Monthly quota (flattened from limits)
-    #[serde(rename = "q")]
-    pub monthly_quota: i32,
+    pub e: i64,
+    /// User ID
+    pub u: i64,
+    /// API key ID (for revocation tracking)
+    pub k: String,
+    /// User tier (0=Free, 1=Pro, 2=Scale)
+    pub t: String,
+    /// Max tokens
+    pub m: i32,
+    /// Monthly quota
+    pub q: i32,
+}
+
+/// PASETO token claims with CBOR-encoded data
+#[derive(Debug, Clone)]
+pub struct TokenClaims {
+    /// Decoded token data (cached for efficiency)
+    data: TokenData,
+}
+
+impl TokenClaims {
+    /// Create TokenClaims from TokenData
+    pub fn from_token_data(data: TokenData) -> Self {
+        Self { data }
+    }
+
+    /// Encode to CBOR and base64 for storage in PASETO
+    pub fn encode_for_paseto(&self) -> Result<String, anyhow::Error> {
+        let mut cbor_bytes = Vec::new();
+        ciborium::into_writer(&self.data, &mut cbor_bytes)?;
+        Ok(base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &cbor_bytes))
+    }
+
+    /// Decode from base64 CBOR data
+    pub fn decode_from_paseto(data_base64: &str) -> Result<Self, anyhow::Error> {
+        let cbor_bytes = base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            data_base64,
+        )?;
+        let data: TokenData = ciborium::from_reader(&cbor_bytes[..])?;
+        Ok(Self { data })
+    }
+
+    /// Get user_id
+    pub fn user_id(&self) -> i64 {
+        self.data.u
+    }
+
+    /// Get key_id
+    pub fn key_id(&self) -> &str {
+        &self.data.k
+    }
+
+    /// Get tier
+    pub fn tier(&self) -> Result<TierType, anyhow::Error> {
+        Ok(serde_json::from_value(serde_json::Value::String(self.data.t.clone()))?)
+    }
+
+    /// Get expiration
+    pub fn exp(&self) -> Result<DateTime<Utc>, anyhow::Error> {
+        Ok(DateTime::from_timestamp(self.data.e, 0)
+            .ok_or_else(|| anyhow::anyhow!("Invalid timestamp"))?)
+    }
+
+    /// Get max_tokens
+    pub fn max_tokens(&self) -> usize {
+        self.data.m as usize
+    }
+
+    /// Get monthly_quota
+    pub fn monthly_quota(&self) -> i32 {
+        self.data.q
+    }
 }
 
 // Keep TokenLimits for compatibility with billing module
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenLimits {
-    #[serde(rename = "m")]
     pub max_tokens: usize,
-    #[serde(rename = "q")]
     pub monthly_quota: i32,
-}
-
-impl TokenClaims {
-    pub fn limits(&self) -> TokenLimits {
-        TokenLimits {
-            max_tokens: self.max_tokens,
-            monthly_quota: self.monthly_quota,
-        }
-    }
 }
 
 /// Revocation status cache entry
@@ -99,14 +144,14 @@ impl PasetoValidator {
         let claims = self.verify_token(token)?;
 
         // Step 2: Check expiration
-        if claims.exp < Utc::now() {
+        if claims.exp()? < Utc::now() {
             return Err(anyhow!("Token expired"));
         }
 
         // Step 3: Check revocation with stale-while-revalidate
-        let key_id = &claims.key_id;
+        let key_id = claims.key_id().to_string();
 
-        if let Some(status) = self.revocation_cache.get(key_id) {
+        if let Some(status) = self.revocation_cache.get(&key_id) {
             let now = Instant::now();
 
             // Case 1: Fresh - serve immediately
@@ -149,11 +194,11 @@ impl PasetoValidator {
 
             // Case 3: Expired - remove from cache, fall through to Redis check
             drop(status);
-            self.revocation_cache.remove(key_id);
+            self.revocation_cache.remove(&key_id);
         }
 
         // Cache miss or expired - check Redis (blocking, but rare)
-        let is_revoked = self.check_redis_revocation(key_id).await?;
+        let is_revoked = self.check_redis_revocation(&key_id).await?;
 
         // Cache the result
         let now = Instant::now();
@@ -185,8 +230,14 @@ impl PasetoValidator {
         // Parse and verify token
         let verified_payload = PasetoParser::<V4, Public>::default().parse(token, &public_key)?;
 
-        // Convert JsonValue to TokenClaims
-        let claims: TokenClaims = serde_json::from_value(verified_payload)?;
+        // Extract the "d" claim which contains base64-encoded CBOR data
+        let data_base64 = verified_payload
+            .get("d")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow!("Missing 'd' claim in token"))?;
+
+        // Decode CBOR data
+        let claims = TokenClaims::decode_from_paseto(data_base64)?;
 
         Ok(claims)
     }
