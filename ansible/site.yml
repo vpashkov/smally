@@ -289,7 +289,7 @@
 
     - name: Upload systemd service file
       copy:
-        src: "{{ playbook_dir }}/../systemd/smally-binary.service"
+        src: "{{ playbook_dir }}/../systemd/smally.service"
         dest: /etc/systemd/system/smally.service
         owner: root
         group: root
