@@ -88,7 +88,7 @@ impl TokenClaims {
 }
 
 /// Sign token data with Ed25519 (direct approach, no PASETO overhead)
-/// Format: version(1 byte) + cbor_bytes + signature(64 bytes) → base64
+/// Format: base64(version(1 byte) + cbor_bytes + signature(64 bytes))
 pub fn sign_token_direct(
     token_data: &TokenData,
     signing_key: &ed25519_dalek::SigningKey,
@@ -110,10 +110,8 @@ pub fn sign_token_direct(
     let mut token_bytes = data_to_sign;
     token_bytes.extend_from_slice(&signature.to_bytes());
 
-    // Base64 encode
-    let token_base64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &token_bytes);
-
-    Ok(format!("v1:{}", token_base64))
+    // Base64 encode (no prefix needed - version is first byte after decoding)
+    Ok(base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &token_bytes))
 }
 
 /// Verify and decode directly signed token
@@ -121,14 +119,8 @@ pub fn verify_token_direct(
     token: &str,
     verifying_key: &ed25519_dalek::VerifyingKey,
 ) -> Result<TokenClaims, anyhow::Error> {
-    // Remove v1: prefix
-    if !token.starts_with("v1:") {
-        return Err(anyhow!("Invalid token format, expected v1: prefix"));
-    }
-    let token_base64 = &token[3..];
-
-    // Decode base64
-    let token_bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, token_base64)?;
+    // Decode base64 (no prefix - version is embedded as first byte)
+    let token_bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, token)?;
 
     // Minimum size: version(1) + cbor(min 10) + signature(64) = 75 bytes
     if token_bytes.len() < 75 {
