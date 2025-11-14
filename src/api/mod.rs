@@ -6,7 +6,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
 
-use crate::{billing, cache, config, database, inference, monitoring, security};
+use crate::{auth, billing, cache, config, inference, monitoring};
 
 #[derive(Debug, Deserialize)]
 pub struct EmbedRequest {
@@ -119,13 +119,14 @@ pub async fn create_embedding_handler(
         ));
     }
 
-    let api_key = parts[1];
+    let token = parts[1];
 
-    // Validate API key
-    let pool = database::get_db();
-    let (user, key) = security::validate_api_key(pool, api_key)
+    // Validate PASETO token
+    let validator = auth::get_validator();
+    let claims = validator
+        .validate(token)
         .await
-        .map_err(|_| ApiError::Unauthorized("API key is invalid or expired".to_string()))?;
+        .map_err(|e| ApiError::Unauthorized(format!("Token validation failed: {}", e)))?;
 
     // Validate text
     if req.text.trim().is_empty() {
@@ -163,13 +164,13 @@ pub async fn create_embedding_handler(
         ));
     }
 
-    // Check rate limit
-    let (is_allowed, rate_limit_info) = billing::check_rate_limit(pool, &user, &key)
+    // Check rate limit using token claims
+    let (is_allowed, rate_limit_info) = billing::check_rate_limit_from_claims(&claims)
         .await
         .map_err(|_| ApiError::InternalError("Failed to check rate limit".to_string()))?;
 
     if !is_allowed {
-        let tier = format!("{:?}", user.tier).to_lowercase();
+        let tier = format!("{:?}", claims.tier).to_lowercase();
         monitoring::RATE_LIMIT_EXCEEDED
             .with_label_values(&[&tier])
             .inc();
@@ -224,8 +225,8 @@ pub async fn create_embedding_handler(
         (embedding, metadata, false)
     };
 
-    // Increment usage
-    let _ = billing::increment_usage(&user, &key).await;
+    // Increment usage using token claims
+    let _ = billing::increment_usage_from_claims(&claims).await;
 
     // Calculate total latency
     let total_latency_ms = start_time.elapsed().as_millis() as f64;

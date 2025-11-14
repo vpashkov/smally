@@ -31,6 +31,8 @@ pub struct Settings {
     // Security Settings
     pub secret_key: String,
     pub api_key_prefix: String,
+    pub paseto_public_key: String,
+    pub paseto_private_key: String,
 
     // Rate Limiting
     pub free_tier_limit: i32,
@@ -72,6 +74,8 @@ impl Settings {
                 "change-this-to-a-secure-random-key-in-production",
             ),
             api_key_prefix: get_env("API_KEY_PREFIX", "fe_"),
+            paseto_public_key: get_env("PASETO_PUBLIC_KEY", ""),
+            paseto_private_key: get_env("PASETO_PRIVATE_KEY", ""),
 
             free_tier_limit: get_env_int("FREE_TIER_LIMIT", 20000),
             pro_tier_limit: get_env_int("PRO_TIER_LIMIT", 100000),

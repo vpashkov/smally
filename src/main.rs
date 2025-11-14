@@ -1,4 +1,5 @@
 mod api;
+mod auth;
 mod billing;
 mod cache;
 mod config;
@@ -57,6 +58,11 @@ async fn main() -> anyhow::Result<()> {
     info!("Initializing Redis connection for billing...");
     billing::init_redis().await?;
     info!("Redis connection for billing initialized");
+
+    // Initialize PASETO validator
+    info!("Initializing PASETO validator...");
+    auth::init_paseto_validator().await?;
+    info!("PASETO validator initialized");
 
     // Initialize usage buffer with background flush task
     info!("Initializing usage buffer...");
