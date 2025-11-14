@@ -254,19 +254,11 @@
         rsync_opts:
           - "--exclude=*.sh~"
 
-    - name: Find all shell scripts
-      find:
-        paths: "{{ smally_app_dir }}/scripts"
-        patterns: "*.sh"
-        recurse: yes
-      register: shell_scripts
-
-    - name: Make scripts executable
-      file:
-        path: "{{ item.path }}"
-        mode: '0755'
-      loop: "{{ shell_scripts.files }}"
-      when: shell_scripts.files | length > 0
+    - name: Make all scripts executable
+      shell: find {{ smally_app_dir }}/scripts -name "*.sh" -type f -exec chmod +x {} +
+      args:
+        warn: false
+      changed_when: false
 
     - name: Create logs directory
       file:
