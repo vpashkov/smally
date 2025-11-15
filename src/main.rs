@@ -22,6 +22,8 @@ use tokio::signal;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing::{info, Level};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -165,6 +167,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(api::health_handler))
         .route("/metrics", get(metrics_handler))
         .route("/api", get(api::root_handler))
+        // OpenAPI documentation
+        .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", api::ApiDoc::openapi()))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))

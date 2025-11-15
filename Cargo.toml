@@ -35,6 +35,10 @@ tower-http = { version = "0.6", features = ["cors", "trace"] }
 hyper = { version = "1.5", features = ["full"] }
 time = "0.3"
 
+# OpenAPI documentation
+utoipa = { version = "5", features = ["axum_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "8", features = ["axum"] }
+
 # Database (PostgreSQL)
 sqlx = { version = "0.8", features = [
   "runtime-tokio",

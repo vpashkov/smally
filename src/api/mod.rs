@@ -6,6 +6,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
+use utoipa::ToSchema;
 
 use crate::{auth, billing, cache, config, inference, monitoring};
 
@@ -13,51 +14,101 @@ pub mod api_keys;
 pub mod organizations;
 pub mod users;
 
-#[derive(Debug, Deserialize)]
+/// Request to create text embeddings
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct EmbedRequest {
+    /// Text to embed (max 2000 characters)
+    #[schema(example = "Hello world")]
     pub text: String,
+    /// Whether to L2 normalize the embedding vector
     #[serde(default)]
+    #[schema(default = false)]
     pub normalize: bool,
 }
 
-#[derive(Debug, Serialize)]
+/// Embedding response with metadata
+#[derive(Debug, Serialize, ToSchema)]
 pub struct EmbedResponse {
+    /// 384-dimensional embedding vector
+    #[schema(value_type = Vec<f32>, example = json!([0.1, 0.2, 0.3]))]
     pub embedding: Vec<f32>,
+    /// Model used for embedding
+    #[schema(example = "all-MiniLM-L6-v2")]
     pub model: String,
+    /// Number of tokens in input text
+    #[schema(example = 5)]
     pub tokens: usize,
+    /// Whether result was served from cache
+    #[schema(example = false)]
     pub cached: bool,
+    /// Total request latency in milliseconds
+    #[schema(example = 25.3)]
     pub latency_ms: f64,
 }
 
-#[derive(Debug, Serialize)]
+/// Error response
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ErrorResponse {
+    /// Error type
+    #[schema(example = "invalid_request")]
     pub error: String,
+    /// Human-readable error message
+    #[schema(example = "Text cannot be empty")]
     pub message: String,
+    /// Maximum allowed tokens (for token limit errors)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<usize>,
+    /// Rate limit reset timestamp (for rate limit errors)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reset_at: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+/// Health check response
+#[derive(Debug, Serialize, ToSchema)]
 pub struct HealthResponse {
+    /// Service status
+    #[schema(example = "healthy")]
     pub status: String,
+    /// API version
+    #[schema(example = "0.1.0")]
     pub version: String,
+    /// Embedding model name
+    #[schema(example = "sentence-transformers/all-MiniLM-L6-v2")]
     pub model: String,
+    /// Build information
     pub build: BuildInfo,
 }
 
-#[derive(Debug, Serialize)]
+/// Build and version information
+#[derive(Debug, Serialize, ToSchema)]
 pub struct BuildInfo {
+    /// Git commit hash
     pub git_hash: String,
+    /// Git branch name
     pub git_branch: String,
+    /// Git commit date
     pub git_date: String,
+    /// Whether build includes uncommitted changes
     pub git_dirty: bool,
+    /// Build timestamp
     pub build_timestamp: String,
+    /// Rust compiler version
     pub rust_version: String,
+    /// Build profile (debug/release)
     pub profile: String,
 }
 
+/// Health check endpoint
+///
+/// Returns service status, version, and build information
+#[utoipa::path(
+    get,
+    path = "/health",
+    tag = "health",
+    responses(
+        (status = 200, description = "Service is healthy", body = HealthResponse)
+    )
+)]
 pub async fn health_handler() -> Json<HealthResponse> {
     let settings = config::get_settings();
 
@@ -83,6 +134,17 @@ pub async fn health_handler() -> Json<HealthResponse> {
     })
 }
 
+/// API information endpoint
+///
+/// Returns basic API information and available endpoints
+#[utoipa::path(
+    get,
+    path = "/",
+    tag = "health",
+    responses(
+        (status = 200, description = "API information")
+    )
+)]
 pub async fn root_handler() -> Json<serde_json::Value> {
     let settings = config::get_settings();
 
@@ -97,6 +159,35 @@ pub async fn root_handler() -> Json<serde_json::Value> {
     }))
 }
 
+/// Create text embeddings
+///
+/// Generates a 384-dimensional embedding vector for the input text using
+/// the all-MiniLM-L6-v2 sentence transformer model.
+///
+/// The endpoint supports caching for faster responses and includes rate limiting
+/// based on your subscription tier.
+#[utoipa::path(
+    post,
+    path = "/v1/embed",
+    tag = "embeddings",
+    request_body = EmbedRequest,
+    responses(
+        (status = 200, description = "Successfully generated embedding", body = EmbedResponse,
+         headers(
+             ("X-RateLimit-Limit" = String, description = "Monthly request limit"),
+             ("X-RateLimit-Remaining" = String, description = "Remaining requests this month"),
+             ("X-RateLimit-Reset" = String, description = "Reset timestamp")
+         )
+        ),
+        (status = 400, description = "Invalid request", body = ErrorResponse),
+        (status = 401, description = "Unauthorized - invalid or missing API key", body = ErrorResponse),
+        (status = 429, description = "Rate limit exceeded", body = ErrorResponse),
+        (status = 500, description = "Internal server error", body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn create_embedding_handler(
     headers: HeaderMap,
     Json(req): Json<EmbedRequest>,
@@ -469,5 +560,66 @@ where
             .map_err(|e| users::ApiError::Unauthorized(format!("Invalid admin token: {}", e)))?;
 
         Ok(auth::AdminTokenClaims::new(token_data))
+    }
+}
+
+/// OpenAPI documentation
+#[derive(utoipa::OpenApi)]
+#[openapi(
+    paths(
+        create_embedding_handler,
+        health_handler,
+        root_handler,
+    ),
+    components(
+        schemas(
+            EmbedRequest,
+            EmbedResponse,
+            ErrorResponse,
+            HealthResponse,
+            BuildInfo,
+        )
+    ),
+    tags(
+        (name = "embeddings", description = "Text embedding endpoints"),
+        (name = "health", description = "Health check and status endpoints"),
+    ),
+    info(
+        title = "Smally Embeddings API",
+        version = "0.1.0",
+        description = "Fast, production-ready text embedding API using sentence transformers",
+        contact(
+            name = "API Support",
+            url = "https://github.com/yourusername/smally"
+        ),
+        license(
+            name = "MIT"
+        )
+    ),
+    servers(
+        (url = "http://localhost:8000", description = "Local development server"),
+        (url = "https://api.example.com", description = "Production server")
+    ),
+    modifiers(&SecurityAddon)
+)]
+pub struct ApiDoc;
+
+/// Security scheme for Bearer token authentication
+struct SecurityAddon;
+
+impl utoipa::Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "bearer_auth",
+                utoipa::openapi::security::SecurityScheme::Http(
+                    utoipa::openapi::security::HttpBuilder::new()
+                        .scheme(utoipa::openapi::security::HttpAuthScheme::Bearer)
+                        .bearer_format("JWT")
+                        .description(Some("Enter your API key (with or without fe_ prefix)"))
+                        .build(),
+                ),
+            )
+        }
     }
 }
