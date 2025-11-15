@@ -21,7 +21,6 @@ bin/
 # Development files
 .env
 .env.local
-.env.production
 .air.toml
 
 # IDE

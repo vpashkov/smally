@@ -64,6 +64,7 @@ ansible-playbook -i inventory/hosts.yml playbook.yml
 For detailed instructions on creating and managing secrets, see **[SECRET_MANAGEMENT.md](SECRET_MANAGEMENT.md)**
 
 Quick setup:
+
 ```bash
 # Copy the template
 cp group_vars/all/vars.yml.example group_vars/all/vault.yml
@@ -125,7 +126,7 @@ ansible-playbook playbook.yml --tags smally
 ### Smally
 
 - Clones Git repository
-- Creates `.env.production` from template
+- Creates `.env` from template
 - Generates or copies SSL certificates
 - Runs deployment script
 - Installs systemd services

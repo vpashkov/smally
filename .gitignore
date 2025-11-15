@@ -22,7 +22,6 @@ tarpaulin-report.html
 # env file
 .env
 .env.local
-.env.production
 .env.backup.*
 
 # Editor/IDE
