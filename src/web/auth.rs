@@ -1,12 +1,13 @@
 use axum::{
-    extract::Form,
-    http::StatusCode,
+    extract::{Form, Query},
+    http::{header, StatusCode},
     response::{IntoResponse, Redirect, Response},
 };
+use axum_extra::extract::cookie::Cookie;
 use maud::{html, Markup};
 use serde::Deserialize;
 
-use crate::auth::session::create_session_token;
+use crate::auth::session::{clear_session_cookie, create_session_cookie, create_session_token};
 use crate::database;
 use crate::models::{TierType, User};
 use bcrypt::{hash, verify, DEFAULT_COST};
@@ -14,11 +15,28 @@ use chrono::Utc;
 
 use super::components::layout;
 
+/// Validate redirect URL to prevent open redirect attacks
+/// Only allows relative URLs starting with /
+fn validate_redirect_url(url: &str) -> String {
+    if url.starts_with('/') && !url.starts_with("//") {
+        url.to_string()
+    } else {
+        "/dashboard".to_string()
+    }
+}
+
+/// Redirect query parameter
+#[derive(Debug, Deserialize)]
+pub struct RedirectQuery {
+    pub next: Option<String>,
+}
+
 /// Login form data
 #[derive(Debug, Deserialize)]
 pub struct LoginForm {
     pub email: String,
     pub password: String,
+    pub next: Option<String>,
 }
 
 /// Register form data
@@ -30,7 +48,8 @@ pub struct RegisterForm {
 }
 
 /// Show login page
-pub async fn login_page() -> Markup {
+pub async fn login_page(Query(redirect): Query<RedirectQuery>) -> Markup {
+    let next = redirect.next.as_deref().unwrap_or("/dashboard");
     layout::base("Login", html! {
         div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" {
             div class="max-w-md w-full space-y-8" {
@@ -49,6 +68,7 @@ pub async fn login_page() -> Markup {
                 // Login form
                 form class="mt-8 space-y-6" action="/login" method="POST" {
                     input type="hidden" name="remember" value="true";
+                    input type="hidden" name="next" value=(next);
 
                     div class="rounded-md shadow-sm -space-y-px" {
                         div {
@@ -175,7 +195,7 @@ pub async fn register_page() -> Markup {
 }
 
 /// Handle login form submission
-pub async fn login_submit(Form(form): Form<LoginForm>) -> Result<Redirect, Response> {
+pub async fn login_submit(Form(form): Form<LoginForm>) -> Result<Response, Response> {
     let pool = database::get_db();
 
     // Find user by email
@@ -267,15 +287,28 @@ pub async fn login_submit(Form(form): Form<LoginForm>) -> Result<Redirect, Respo
             .into_response()
     })?;
 
-    // TODO: Set session cookie instead of just redirecting
-    // For now, just redirect to dashboard
-    // In the next iteration, we'll add proper session management with cookies
+    // Create session cookie
+    let cookie = create_session_cookie(&token);
 
-    Ok(Redirect::to("/dashboard"))
+    // Validate and determine redirect URL
+    let redirect_url = form
+        .next
+        .as_deref()
+        .map(validate_redirect_url)
+        .unwrap_or_else(|| "/dashboard".to_string());
+
+    // Return redirect with Set-Cookie header
+    let mut response = Redirect::to(&redirect_url).into_response();
+    response.headers_mut().insert(
+        header::SET_COOKIE,
+        cookie.to_string().parse().unwrap(),
+    );
+
+    Ok(response)
 }
 
 /// Handle register form submission
-pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Redirect, Response> {
+pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Response, Response> {
     let pool = database::get_db();
 
     // Check if user already exists
@@ -383,7 +416,7 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Redirect,
     })?;
 
     // Generate session token
-    let _session_token = create_session_token(user.id, &user.email).map_err(|e| {
+    let token = create_session_token(user.id, &user.email).map_err(|e| {
         tracing::error!("Failed to create session token: {}", e);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -392,7 +425,28 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Redirect,
             .into_response()
     })?;
 
-    // TODO: Set session cookie
-    // For now, redirect to login
-    Ok(Redirect::to("/login"))
+    // Create session cookie
+    let cookie = create_session_cookie(&token);
+
+    // Return redirect with Set-Cookie header (auto-login after registration)
+    let mut response = Redirect::to("/dashboard").into_response();
+    response.headers_mut().insert(
+        header::SET_COOKIE,
+        cookie.to_string().parse().unwrap(),
+    );
+
+    Ok(response)
+}
+
+/// Handle logout - clear session cookie and redirect to login
+pub async fn logout_submit() -> Response {
+    let cookie = clear_session_cookie();
+
+    let mut response = Redirect::to("/login").into_response();
+    response.headers_mut().insert(
+        header::SET_COOKIE,
+        cookie.to_string().parse().unwrap(),
+    );
+
+    response
 }

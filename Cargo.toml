@@ -25,9 +25,11 @@ tokio = { version = "1.43", features = ["full"] }
 
 # HTTP server and routing
 axum = { version = "0.7", features = ["macros"] }
+axum-extra = { version = "0.9", features = ["cookie"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 hyper = { version = "1.5", features = ["full"] }
+time = "0.3"
 
 # Database (PostgreSQL)
 sqlx = { version = "0.8", features = [
@@ -61,6 +63,7 @@ bcrypt = "0.16"
 jsonwebtoken = "9.3"
 validator = { version = "0.18", features = ["derive"] }
 clap = { version = "4.5", features = ["derive"] }
+urlencoding = "2.1"
 
 # Metrics (Prometheus)
 prometheus = { version = "0.13", features = ["process"] }

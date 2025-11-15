@@ -1,6 +1,8 @@
+pub mod api_keys;
 pub mod auth;
 pub mod components;
 pub mod dashboard;
+pub mod organizations;
 
 use axum::response::Redirect;
 use maud::{html, Markup};

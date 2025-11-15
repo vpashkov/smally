@@ -8,7 +8,7 @@ pub fn base(title: &str, content: Markup) -> Markup {
             head {
                 meta charset="utf-8";
                 meta name="viewport" content="width=device-width, initial-scale=1";
-                title { (title) " - FastEmbed" }
+                title { (title) " - Smally" }
 
                 // Tailwind CSS (using CDN for now, can switch to build later)
                 script src="https://cdn.tailwindcss.com" {}
@@ -40,7 +40,7 @@ pub fn base(title: &str, content: Markup) -> Markup {
 }
 
 /// Navigation bar for authenticated pages
-pub fn navbar(user_email: &str) -> Markup {
+pub fn navbar(user_email: &str, current_page: &str) -> Markup {
     html! {
         nav class="bg-white shadow-sm border-b border-gray-200" {
             div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" {
@@ -49,18 +49,26 @@ pub fn navbar(user_email: &str) -> Markup {
                         // Logo
                         div class="flex-shrink-0 flex items-center" {
                             a href="/dashboard" class="text-2xl font-bold text-primary" {
-                                "FastEmbed"
+                                "Smally"
                             }
                         }
 
                         // Navigation links
                         div class="hidden sm:ml-6 sm:flex sm:space-x-8" {
                             a href="/dashboard"
-                              class="border-primary text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium" {
+                              class=(if current_page == "dashboard" {
+                                  "border-primary text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                              } else {
+                                  "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                              }) {
                                 "Dashboard"
                             }
                             a href="/organizations"
-                              class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium" {
+                              class=(if current_page == "organizations" {
+                                  "border-primary text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                              } else {
+                                  "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                              }) {
                                 "Organizations"
                             }
                         }

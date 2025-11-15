@@ -1,15 +1,14 @@
 use maud::{html, Markup};
 
+use crate::auth::session::SessionCookie;
 use super::components::layout;
 
-/// Show dashboard (placeholder for now)
-pub async fn show() -> Markup {
-    // TODO: Extract user from session cookie
-    // For now, show a placeholder dashboard
-    let user_email = "user@example.com";
+/// Show dashboard with user session
+pub async fn show(session: SessionCookie) -> Markup {
+    let user_email = session.email();
 
     layout::base("Dashboard", html! {
-        (layout::navbar(user_email))
+        (layout::navbar(user_email, "dashboard"))
         (layout::container(html! {
             h1 class="text-3xl font-bold text-gray-900 mb-8" {
                 "Dashboard"
@@ -89,7 +88,7 @@ pub async fn show() -> Markup {
 
                 div class="grid grid-cols-1 gap-4 sm:grid-cols-2" {
                     a
-                        href="/organizations"
+                        href="/organizations?new=true"
                         class="relative block w-full border-2 border-gray-300 border-dashed rounded-lg p-12 text-center hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
                         svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" {
                             path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" {}
@@ -116,7 +115,7 @@ pub async fn show() -> Markup {
                 (layout::card("Getting Started", html! {
                     div class="prose max-w-none" {
                         p class="text-gray-600" {
-                            "Welcome to FastEmbed! Get started by creating an organization and generating your first API key."
+                            "Welcome to Smally! Get started by creating an organization and generating your first API key."
                         }
 
                         ol class="mt-4 space-y-2 text-sm text-gray-600" {
