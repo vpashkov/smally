@@ -1,0 +1,90 @@
+/**
+ * Custom CSS for Smally Documentation
+ */
+
+:root {
+  --ifm-color-primary: #1890ff;
+  --ifm-color-primary-dark: #0f7cdb;
+  --ifm-color-primary-darker: #0e75ce;
+  --ifm-color-primary-darkest: #0c60aa;
+  --ifm-color-primary-light: #42a4ff;
+  --ifm-color-primary-lighter: #56acff;
+  --ifm-color-primary-lightest: #84c4ff;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #42a4ff;
+  --ifm-color-primary-dark: #1890ff;
+  --ifm-color-primary-darker: #0f7cdb;
+  --ifm-color-primary-darkest: #0c60aa;
+  --ifm-color-primary-light: #56acff;
+  --ifm-color-primary-lighter: #6ab5ff;
+  --ifm-color-primary-lightest: #84c4ff;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Custom styles */
+.hero {
+  background: linear-gradient(135deg, var(--ifm-color-primary) 0%, var(--ifm-color-primary-dark) 100%);
+  color: white;
+}
+
+.hero__title {
+  font-size: 3rem;
+}
+
+.hero__subtitle {
+  font-size: 1.5rem;
+  opacity: 0.9;
+}
+
+/* Code blocks */
+code {
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+}
+
+/* Tables */
+table {
+  display: table;
+  width: 100%;
+}
+
+/* Admonitions */
+.admonition {
+  border-radius: 6px;
+}
+
+/* Navbar */
+.navbar {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Footer */
+.footer {
+  background-color: var(--ifm-background-surface-color);
+  padding: 2rem 0;
+}
+
+/* Sidebar */
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--ifm-toc-border-color);
+}
+
+/* Stoplight Elements styles */
+.sl-elements-api {
+  height: 100%;
+}
+
+/* Remove padding for API page to give full width */
+article.theme-doc-markdown {
+  padding: 0 !important;
+}
+
+/* Ensure API container fills viewport */
+.container--fluid {
+  padding: 0 !important;
+  max-width: 100% !important;
+}

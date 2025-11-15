@@ -604,11 +604,14 @@ where
 )]
 pub struct ApiDoc;
 
-/// Security scheme for Bearer token authentication
+/// Security scheme for Bearer token authentication and code samples
 struct SecurityAddon;
 
 impl utoipa::Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        use serde_json::json;
+
+        // Add security scheme
         if let Some(components) = openapi.components.as_mut() {
             components.add_security_scheme(
                 "bearer_auth",
@@ -620,6 +623,35 @@ impl utoipa::Modify for SecurityAddon {
                         .build(),
                 ),
             )
+        }
+
+        // Add code samples to embed endpoint
+        if let Some(embed_path) = openapi.paths.paths.get_mut("/v1/embed") {
+            if let Some(post_op) = &mut embed_path.post {
+                // Add x-codeSamples extension
+                let code_samples = json!([
+                    {
+                        "lang": "Shell",
+                        "label": "cURL",
+                        "source": "curl -X POST \"http://localhost:8000/v1/embed\" \\\n  -H \"Authorization: Bearer YOUR_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"text\": \"Hello world\", \"normalize\": false}'"
+                    },
+                    {
+                        "lang": "JavaScript",
+                        "label": "JavaScript",
+                        "source": "const response = await fetch('http://localhost:8000/v1/embed', {\n  method: 'POST',\n  headers: {\n    'Authorization': 'Bearer YOUR_API_KEY',\n    'Content-Type': 'application/json'\n  },\n  body: JSON.stringify({\n    text: 'Hello world',\n    normalize: false\n  })\n});\nconst data = await response.json();"
+                    },
+                    {
+                        "lang": "Python",
+                        "label": "Python",
+                        "source": "import requests\n\nresponse = requests.post(\n    'http://localhost:8000/v1/embed',\n    headers={\n        'Authorization': 'Bearer YOUR_API_KEY',\n        'Content-Type': 'application/json'\n    },\n    json={\n        'text': 'Hello world',\n        'normalize': False\n    }\n)\ndata = response.json()"
+                    }
+                ]);
+                post_op.extensions = Some(
+                    vec![("x-code-samples".to_string(), code_samples)]
+                        .into_iter()
+                        .collect()
+                );
+            }
         }
     }
 }

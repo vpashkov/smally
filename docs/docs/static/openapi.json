@@ -1,0 +1,359 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Smally Embeddings API",
+    "description": "Fast, production-ready text embedding API using sentence transformers",
+    "contact": {
+      "name": "API Support",
+      "url": "https://github.com/yourusername/smally"
+    },
+    "license": {
+      "name": "MIT"
+    },
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development server"
+    },
+    {
+      "url": "https://api.example.com",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "API information endpoint",
+        "description": "Returns basic API information and available endpoints",
+        "operationId": "root_handler",
+        "responses": {
+          "200": {
+            "description": "API information"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health check endpoint",
+        "description": "Returns service status, version, and build information",
+        "operationId": "health_handler",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/embed": {
+      "post": {
+        "tags": [
+          "embeddings"
+        ],
+        "summary": "Create text embeddings",
+        "description": "Generates a 384-dimensional embedding vector for the input text using\nthe all-MiniLM-L6-v2 sentence transformer model.\n\nThe endpoint supports caching for faster responses and includes rate limiting\nbased on your subscription tier.",
+        "operationId": "create_embedding_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmbedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully generated embedding",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Monthly request limit"
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Remaining requests this month"
+              },
+              "X-RateLimit-Reset": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Reset timestamp"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer_auth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BuildInfo": {
+        "type": "object",
+        "description": "Build and version information",
+        "required": [
+          "git_hash",
+          "git_branch",
+          "git_date",
+          "git_dirty",
+          "build_timestamp",
+          "rust_version",
+          "profile"
+        ],
+        "properties": {
+          "build_timestamp": {
+            "type": "string",
+            "description": "Build timestamp"
+          },
+          "git_branch": {
+            "type": "string",
+            "description": "Git branch name"
+          },
+          "git_date": {
+            "type": "string",
+            "description": "Git commit date"
+          },
+          "git_dirty": {
+            "type": "boolean",
+            "description": "Whether build includes uncommitted changes"
+          },
+          "git_hash": {
+            "type": "string",
+            "description": "Git commit hash"
+          },
+          "profile": {
+            "type": "string",
+            "description": "Build profile (debug/release)"
+          },
+          "rust_version": {
+            "type": "string",
+            "description": "Rust compiler version"
+          }
+        }
+      },
+      "EmbedRequest": {
+        "type": "object",
+        "description": "Request to create text embeddings",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "normalize": {
+            "type": "boolean",
+            "description": "Whether to L2 normalize the embedding vector",
+            "default": false
+          },
+          "text": {
+            "type": "string",
+            "description": "Text to embed (max 2000 characters)",
+            "example": "Hello world"
+          }
+        }
+      },
+      "EmbedResponse": {
+        "type": "object",
+        "description": "Embedding response with metadata",
+        "required": [
+          "embedding",
+          "model",
+          "tokens",
+          "cached",
+          "latency_ms"
+        ],
+        "properties": {
+          "cached": {
+            "type": "boolean",
+            "description": "Whether result was served from cache",
+            "example": false
+          },
+          "embedding": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "float"
+            },
+            "description": "384-dimensional embedding vector",
+            "example": [
+              0.1,
+              0.2,
+              0.3
+            ]
+          },
+          "latency_ms": {
+            "type": "number",
+            "format": "double",
+            "description": "Total request latency in milliseconds",
+            "example": 25.3
+          },
+          "model": {
+            "type": "string",
+            "description": "Model used for embedding",
+            "example": "all-MiniLM-L6-v2"
+          },
+          "tokens": {
+            "type": "integer",
+            "description": "Number of tokens in input text",
+            "example": 5,
+            "minimum": 0
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Error response",
+        "required": [
+          "error",
+          "message"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error type",
+            "example": "invalid_request"
+          },
+          "max_tokens": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Maximum allowed tokens (for token limit errors)",
+            "minimum": 0
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable error message",
+            "example": "Text cannot be empty"
+          },
+          "reset_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Rate limit reset timestamp (for rate limit errors)"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "description": "Health check response",
+        "required": [
+          "status",
+          "version",
+          "model",
+          "build"
+        ],
+        "properties": {
+          "build": {
+            "$ref": "#/components/schemas/BuildInfo",
+            "description": "Build information"
+          },
+          "model": {
+            "type": "string",
+            "description": "Embedding model name",
+            "example": "sentence-transformers/all-MiniLM-L6-v2"
+          },
+          "status": {
+            "type": "string",
+            "description": "Service status",
+            "example": "healthy"
+          },
+          "version": {
+            "type": "string",
+            "description": "API version",
+            "example": "0.1.0"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearer_auth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Enter your API key (with or without fe_ prefix)"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "embeddings",
+      "description": "Text embedding endpoints"
+    },
+    {
+      "name": "health",
+      "description": "Health check and status endpoints"
+    }
+  ]
+}

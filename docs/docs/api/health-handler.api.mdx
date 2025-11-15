@@ -1,0 +1,63 @@
+---
+id: health-handler
+title: "Health check endpoint"
+description: "Returns service status, version, and build information"
+sidebar_label: "Health check endpoint"
+hide_title: true
+hide_table_of_contents: true
+api: eJydVsGO2zYQ/RViTgkgr5wcikK3FkjSDXaBYL1FDouFQVNji1mKZMihu4Khfy+Gkiw7buG0vpiSOW/ePL4Z+gAkdxGqJ2hQGmrguYAaowrak3YWKnhASsFGETHstUIRSVKKhdhjiNrZQkhbi03Sphbabl1oZQ4swHkMeX1bQzXCrxtpa4MBCggYvbMRI1QHeL9c8td55tWYUUcxRHdQgHKW0BLvlt4brXKK8lvkkANE1WAreUWdR6jAbb6hIvixqj8yoFANqhcxUcmsvicdsGZFhkqhgLFUKKB1NRooINfLWvnAZZIeyhheXxTy+z+o8yO908Q7TetGxgaKvNwEadX0UEvCaakDdROZNekWI8nWM1iKtJ5Z++C22uC/8D2JnGWLFLTdXcg2VDIH9GcMr4Z/0iSGvcLKFqfwXNNPBSvXtppEDuhPVZijN84ZlPYi/GuD1GA4WlWZVGMUyQ6YhLVQjbQ7jBNyPoL/QisH9LPePynnuF28qXGTdmVAgzLiW0Y6O8ircA8pZi5eGwxTg0LfF0CamM+Q8NZuHYMPZr6K+qHdYF1ruxM5YDi5AvBVtj6DRuSWVLigIG1kk2OIpTRmca+tvrtf3P2y2L/njGNHXU25Ops1Z8mmSdDPbXkV7rcvt2LuhhlrefPuZnmmzzAWHqZ50POngBapcTzEdsit6iU1UEE5TswCeDRi4Cl6gBQMsyTyVVkap6RpXKTq1+VyecHrjn8WNe7RON+iJTEgQV+cAsWqLKXXNyPxG+XaC6gvwdVJ8cMR45mJqRQ0dSueimPLowwY1jLRqbc5DReS93ET5V08W/LiYx5cUMHnr4+X/rCEQXQuBcFCv2An3vylqREuCP52icQW18IH3OrXt1lvnoU5/aj7qpXGdOJotchQF5k+ykgFt8tY6iKgrDtB+EoCjy5lEinyajKmODXmeIdIle+QbObBIavkvQt8wOfS7zQ1acOql1xkihg4qoyZMxvRaIVslxnv/vbxzKGT1QrwLlIr7cnes6sIbe2dthcX1mG++P7/jTweNutVeiO1ZUK52MNo6tO/AexbfnM4bGTEP4Ppe379PWHooHp6LmAvg5YbPsCn577g0BpD7oIX7FhVpdBzKXtpEme+uLHZpMfu+vThEfr+b8eT/bU=
+sidebar_class_name: "get api-method"
+info_path: docs/api/smally-embeddings-api
+custom_edit_url: null
+---
+
+import MethodEndpoint from "@theme/ApiExplorer/MethodEndpoint";
+import ParamsDetails from "@theme/ParamsDetails";
+import RequestSchema from "@theme/RequestSchema";
+import StatusCodes from "@theme/StatusCodes";
+import OperationTabs from "@theme/OperationTabs";
+import TabItem from "@theme/TabItem";
+import Heading from "@theme/Heading";
+
+<Heading
+  as={"h1"}
+  className={"openapi__heading"}
+  children={"Health check endpoint"}
+>
+</Heading>
+
+<MethodEndpoint
+  method={"get"}
+  path={"/health"}
+  context={"endpoint"}
+>
+  
+</MethodEndpoint>
+
+
+
+Returns service status, version, and build information
+
+<ParamsDetails
+  parameters={undefined}
+>
+  
+</ParamsDetails>
+
+<RequestSchema
+  title={"Body"}
+  body={undefined}
+>
+  
+</RequestSchema>
+
+<StatusCodes
+  id={undefined}
+  label={undefined}
+  responses={{"200":{"description":"Service is healthy","content":{"application/json":{"schema":{"type":"object","description":"Health check response","required":["status","version","model","build"],"properties":{"build":{"description":"Build information","type":"object","required":["git_hash","git_branch","git_date","git_dirty","build_timestamp","rust_version","profile"],"properties":{"build_timestamp":{"type":"string","description":"Build timestamp"},"git_branch":{"type":"string","description":"Git branch name"},"git_date":{"type":"string","description":"Git commit date"},"git_dirty":{"type":"boolean","description":"Whether build includes uncommitted changes"},"git_hash":{"type":"string","description":"Git commit hash"},"profile":{"type":"string","description":"Build profile (debug/release)"},"rust_version":{"type":"string","description":"Rust compiler version"}},"title":"BuildInfo"},"model":{"type":"string","description":"Embedding model name","example":"sentence-transformers/all-MiniLM-L6-v2"},"status":{"type":"string","description":"Service status","example":"healthy"},"version":{"type":"string","description":"API version","example":"0.1.0"}},"title":"HealthResponse"}}}}}}
+>
+  
+</StatusCodes>
+
+
+      

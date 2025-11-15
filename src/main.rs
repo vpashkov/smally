@@ -20,6 +20,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tokio::signal;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use tracing::{info, Level};
 use utoipa::OpenApi;
@@ -169,6 +170,12 @@ async fn main() -> anyhow::Result<()> {
         .route("/api", get(api::root_handler))
         // OpenAPI documentation
         .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", api::ApiDoc::openapi()))
+        // Static documentation
+        .nest_service(
+            "/docs",
+            ServeDir::new("./docs/build")
+                .append_index_html_on_directories(true)
+        )
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))

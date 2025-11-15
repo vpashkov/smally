@@ -23,6 +23,10 @@ path = "src/bin/create_token.rs"
 name = "create_api_key"
 path = "src/bin/create_api_key.rs"
 
+[[bin]]
+name = "generate_openapi"
+path = "src/bin/generate_openapi.rs"
+
 [dependencies]
 # Async runtime
 tokio = { version = "1.43", features = ["full"] }
@@ -31,7 +35,7 @@ tokio = { version = "1.43", features = ["full"] }
 axum = { version = "0.7", features = ["macros"] }
 axum-extra = { version = "0.9", features = ["cookie"] }
 tower = "0.5"
-tower-http = { version = "0.6", features = ["cors", "trace"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
 hyper = { version = "1.5", features = ["full"] }
 time = "0.3"
 
