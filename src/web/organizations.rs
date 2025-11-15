@@ -22,7 +22,7 @@ pub struct OrganizationsQuery {
 /// Organization with user's role
 #[derive(Debug, sqlx::FromRow)]
 struct OrganizationWithRole {
-    id: i64,
+    id: uuid::Uuid,
     name: String,
     slug: String,
     tier: TierType,
@@ -320,7 +320,7 @@ pub async fn create(
     }
 
     // Create organization
-    let org_id = sqlx::query_scalar::<_, i64>(
+    let org_id = sqlx::query_scalar::<_, uuid::Uuid>(
         "INSERT INTO organizations (name, slug, owner_id, tier, is_active, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING id",

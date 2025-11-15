@@ -20,7 +20,7 @@ use super::organizations::OrganizationsQuery;
 /// Organization with user's role (for access check)
 #[derive(Debug, sqlx::FromRow)]
 struct OrganizationWithRole {
-    id: i64,
+    id: Uuid,
     name: String,
     slug: String,
     tier: TierType,
@@ -466,7 +466,7 @@ pub async fn revoke(
     let user_id = session.user_id();
 
     // Check user has access to this organization
-    let _org = sqlx::query_scalar::<_, i64>(
+    let _org = sqlx::query_scalar::<_, Uuid>(
         "SELECT o.id FROM organizations o
          INNER JOIN organization_members om ON o.id = om.organization_id
          WHERE o.id = $1 AND om.user_id = $2",
