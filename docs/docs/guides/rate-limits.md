@@ -286,7 +286,7 @@ Enterprise tier offers:
 - **SLA guarantees**
 - **Priority support**
 
-Contact sales: <sales@smally.ai>
+Contact sales: [sales@smally.ai](mailto:sales@smally.ai)
 
 ## Troubleshooting
 
