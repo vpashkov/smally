@@ -1,4 +1,4 @@
-.PHONY: help deps build run services-up services-down model init-db clean test docker-build docker-up docker-down deploy quick-deploy health-check backup create-token generate-keypair logs-prod check bench bench-cache bench-tokenizer bench-inference perf-test load-test quick-test
+.PHONY: help deps build run dev dev-ui dev-check services-up services-down model init-db clean test docker-build docker-up docker-down deploy quick-deploy health-check backup create-token generate-keypair logs-prod check bench bench-cache bench-tokenizer bench-inference perf-test load-test quick-test
 
 help:
 	@echo "Smally API (Rust) - Make Commands"
@@ -14,7 +14,11 @@ help:
 	@echo "  make build         - Build the server binary (release)"
 	@echo "  make check         - Check code compilation"
 	@echo "  make run           - Run the API server (release mode)"
-	@echo "  make dev           - Run in development mode with auto-reload"
+	@echo ""
+	@echo "Development (Fast Iteration):"
+	@echo "  make dev           - Auto-reload on any file change (requires cargo-watch)"
+	@echo "  make dev-ui        - Auto-reload on web UI changes only (fastest)"
+	@echo "  make dev-check     - Auto-check on changes (no restart)"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make fmt           - Format code with rustfmt"
@@ -62,8 +66,28 @@ build:
 run:
 	cargo run --release
 
+# Development with auto-reload (requires cargo-watch)
 dev:
-	cargo watch -x run
+	@echo "🔥 Starting development server with auto-reload..."
+	@echo "💡 Edit files in src/ and save to see changes"
+	@echo "⏱️  Typical rebuild: 3-5 seconds"
+	@echo ""
+	cargo watch -c -q -w src -x run
+
+# Fast UI iteration (watches only web files)
+dev-ui:
+	@echo "🎨 Starting UI development mode (fastest iteration)..."
+	@echo "💡 Only watches src/web/ for changes"
+	@echo "⏱️  Typical rebuild: 2-3 seconds"
+	@echo ""
+	cargo watch -c -q -w src/web -x run
+
+# Check code without running (super fast)
+dev-check:
+	@echo "✅ Starting auto-check mode..."
+	@echo "💡 Checks code for errors without running"
+	@echo ""
+	cargo watch -c -q -w src -x check
 
 services-up:
 	docker-compose up -d
