@@ -3,6 +3,7 @@ use once_cell::sync::OnceCell;
 use parking_lot::RwLock;
 use redis::{aio::ConnectionManager, AsyncCommands};
 use seahash::hash;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -11,8 +12,16 @@ use crate::config;
 pub mod lru;
 use lru::LruCache;
 
+/// Cached embedding with metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CachedEmbedding {
+    pub embedding: Vec<f32>,
+    pub tokens: usize,
+    pub model: String,
+}
+
 pub struct EmbeddingCache {
-    l1_cache: Arc<RwLock<LruCache<String, Vec<f32>>>>,
+    l1_cache: Arc<RwLock<LruCache<String, CachedEmbedding>>>,
     redis_client: ConnectionManager,
     l2_cache_ttl: u64,
 }
@@ -37,14 +46,14 @@ impl EmbeddingCache {
         })
     }
 
-    pub async fn get(&self, text: &str) -> Option<Vec<f32>> {
+    pub async fn get(&self, text: &str) -> Option<CachedEmbedding> {
         let cache_key = self.get_cache_key(text);
 
         // Check L1 cache
         {
             let cache = self.l1_cache.read();
-            if let Some(embedding) = cache.get(&cache_key) {
-                return Some(embedding.clone());
+            if let Some(cached) = cache.get(&cache_key) {
+                return Some(cached.clone());
             }
         }
 
@@ -55,28 +64,28 @@ impl EmbeddingCache {
             .get::<_, Vec<u8>>(&cache_key)
             .await
         {
-            if let Some(embedding) = Self::deserialize_embedding(&data) {
+            if let Some(cached) = Self::deserialize_cached_embedding(&data) {
                 // Populate L1 cache
                 let mut cache = self.l1_cache.write();
-                cache.put(cache_key, embedding.clone());
-                return Some(embedding);
+                cache.put(cache_key, cached.clone());
+                return Some(cached);
             }
         }
 
         None
     }
 
-    pub async fn set(&self, text: &str, embedding: Vec<f32>) {
+    pub async fn set(&self, text: &str, cached_embedding: CachedEmbedding) {
         let cache_key = self.get_cache_key(text);
 
         // Set in L1 cache
         {
             let mut cache = self.l1_cache.write();
-            cache.put(cache_key.clone(), embedding.clone());
+            cache.put(cache_key.clone(), cached_embedding.clone());
         }
 
         // Set in L2 cache (async, non-blocking)
-        let serialized = Self::serialize_embedding(&embedding);
+        let serialized = Self::serialize_cached_embedding(&cached_embedding);
         let ttl = self.l2_cache_ttl;
         let mut client = self.redis_client.clone();
         tokio::spawn(async move {
@@ -99,22 +108,13 @@ impl EmbeddingCache {
         format!("embed:v2:{:x}", hash_value)
     }
 
-    fn serialize_embedding(embedding: &[f32]) -> Vec<u8> {
-        embedding.iter().flat_map(|&f| f.to_le_bytes()).collect()
+    fn serialize_cached_embedding(cached: &CachedEmbedding) -> Vec<u8> {
+        // Use bincode for efficient serialization
+        bincode::serialize(cached).unwrap_or_default()
     }
 
-    fn deserialize_embedding(data: &[u8]) -> Option<Vec<f32>> {
-        if data.is_empty() || !data.len().is_multiple_of(4) {
-            return None;
-        }
-
-        let mut embedding = Vec::with_capacity(data.len() / 4);
-        for chunk in data.chunks_exact(4) {
-            let bytes = [chunk[0], chunk[1], chunk[2], chunk[3]];
-            embedding.push(f32::from_le_bytes(bytes));
-        }
-
-        Some(embedding)
+    fn deserialize_cached_embedding(data: &[u8]) -> Option<CachedEmbedding> {
+        bincode::deserialize(data).ok()
     }
 }
 

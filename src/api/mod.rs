@@ -156,6 +156,27 @@ pub async fn create_embedding_handler(
         ));
     }
 
+    // Get settings early
+    let settings = config::get_settings();
+
+    // Fast validation: estimate tokens from text length
+    // Average: ~4 chars per token for BERT tokenizers
+    let estimated_tokens = req.text.len() / 4;
+
+    // Reject if estimate is way over limit (2x buffer for safety)
+    if estimated_tokens > settings.max_tokens * 2 {
+        monitoring::ERROR_COUNT
+            .with_label_values(&["text_too_long"])
+            .inc();
+        return Err(ApiError::BadRequestWithTokens(
+            format!(
+                "Input text too long (estimated ~{} tokens, max {})",
+                estimated_tokens, settings.max_tokens
+            ),
+            settings.max_tokens,
+        ));
+    }
+
     // Record request immediately to api_request_log (audit trail)
     let buffer = billing::get_usage_buffer();
     buffer.record_request(
@@ -173,27 +194,6 @@ pub async fn create_embedding_handler(
     // Get model and cache
     let model = inference::get_model();
     let cache = cache::get_cache();
-    let settings = config::get_settings();
-
-    // Count tokens
-    let token_count = {
-        let model_lock = model.read();
-        model_lock.count_tokens(&req.text)
-    };
-    monitoring::TOKEN_COUNT.observe(token_count as f64);
-
-    if token_count > settings.max_tokens {
-        monitoring::ERROR_COUNT
-            .with_label_values(&["text_too_long"])
-            .inc();
-        return Err(ApiError::BadRequestWithTokens(
-            format!(
-                "Input exceeds {} tokens (got {})",
-                settings.max_tokens, token_count
-            ),
-            settings.max_tokens,
-        ));
-    }
 
     // Check rate limit using token claims
     let (is_allowed, rate_limit_info) = billing::check_rate_limit_from_claims(&claims)
@@ -220,62 +220,48 @@ pub async fn create_embedding_handler(
     }
 
     // Check cache
-    let (embedding, metadata, cached) = if let Some(cached_embedding) = cache.get(&req.text).await {
-        monitoring::CACHE_HITS.with_label_values(&["total"]).inc();
-        let model_name = settings
-            .model_name
-            .split('/')
-            .next_back()
-            .unwrap_or("unknown")
-            .to_string();
-        (
-            cached_embedding,
-            inference::Metadata {
-                model: model_name,
-                tokens: token_count,
-                inference_time_ms: 0.0,
-            },
-            true,
-        )
-    } else {
-        // Generate embedding
-        let (embedding, metadata) = {
-            let mut model_lock = model.write();
-            model_lock.encode(&req.text, req.normalize).map_err(|_| {
-                monitoring::ERROR_COUNT
-                    .with_label_values(&["inference_error"])
-                    .inc();
-                ApiError::InternalError("Failed to generate embedding".to_string())
-            })?
+    let (embedding, model_name, cached, exact_tokens) =
+        if let Some(cached_data) = cache.get(&req.text).await {
+            monitoring::CACHE_HITS.with_label_values(&["total"]).inc();
+
+            // Cache hit: use metadata from cache (no token counting needed!)
+            (
+                cached_data.embedding,
+                cached_data.model,
+                true,
+                cached_data.tokens,
+            )
+        } else {
+            // Cache miss: generate embedding
+            let (embedding, metadata) = {
+                let mut model_lock = model.write();
+                model_lock.encode(&req.text, req.normalize).map_err(|_| {
+                    monitoring::ERROR_COUNT
+                        .with_label_values(&["inference_error"])
+                        .inc();
+                    ApiError::InternalError("Failed to generate embedding".to_string())
+                })?
+            };
+
+            // Record inference time
+            monitoring::INFERENCE_LATENCY.observe(metadata.inference_time_ms / 1000.0);
+            monitoring::CACHE_MISSES.inc();
+
+            // Cache the result WITH metadata
+            cache
+                .set(
+                    &req.text,
+                    cache::CachedEmbedding {
+                        embedding: embedding.clone(),
+                        tokens: metadata.tokens,
+                        model: metadata.model.clone(),
+                    },
+                )
+                .await;
+
+            // Use tokens from inference metadata (already counted!)
+            (embedding, metadata.model, false, metadata.tokens)
         };
-
-        // Record inference time
-        monitoring::INFERENCE_LATENCY.observe(metadata.inference_time_ms / 1000.0);
-        monitoring::CACHE_MISSES.inc();
-
-        // Cache the result
-        cache.set(&req.text, embedding.clone()).await;
-
-        (embedding, metadata, false)
-    };
-
-    // Calculate total latency
-    let total_latency_ms = start_time.elapsed().as_millis() as f64;
-
-    // Record response and usage (update api_request_log, insert usage_events)
-    buffer.record_response(
-        request_id,
-        claims.org_id(),
-        claims.key_id(),
-        "embeddings",
-        token_count as i32,
-        serde_json::json!({
-            "model": metadata.model,
-            "cached": cached,
-            "latency_ms": total_latency_ms,
-            "normalize": req.normalize
-        }),
-    );
 
     // Increment Redis counter for free tier rate limiting
     let tier = claims
@@ -284,21 +270,6 @@ pub async fn create_embedding_handler(
     if tier == crate::models::TierType::Free {
         billing::increment_free_tier_counter(claims.org_id());
     }
-
-    // Record metrics
-    monitoring::REQUEST_COUNT
-        .with_label_values(&["success", &cached.to_string()])
-        .inc();
-    monitoring::REQUEST_LATENCY.observe(total_latency_ms / 1000.0);
-
-    // Send response
-    let response = EmbedResponse {
-        embedding,
-        model: metadata.model,
-        tokens: metadata.tokens,
-        cached,
-        latency_ms: total_latency_ms,
-    };
 
     let mut headers = HeaderMap::new();
     if let Some(limit) = rate_limit_info.get("limit") {
@@ -316,6 +287,39 @@ pub async fn create_embedding_handler(
             headers.insert("X-RateLimit-Reset", value);
         }
     }
+
+    monitoring::TOKEN_COUNT.observe(exact_tokens as f64);
+    monitoring::REQUEST_COUNT
+        .with_label_values(&["success", &cached.to_string()])
+        .inc();
+
+    // Calculate total latency
+    let total_latency_ms = start_time.elapsed().as_millis() as f64;
+
+    monitoring::REQUEST_LATENCY.observe(total_latency_ms / 1000.0);
+
+    // Record response with exact token count (for billing)
+    buffer.record_response(
+        request_id,
+        claims.org_id(),
+        claims.key_id(),
+        "embeddings",
+        exact_tokens as i32,
+        serde_json::json!({
+            "model": model_name,
+            "cached": cached,
+            "latency_ms": total_latency_ms,
+            "normalize": req.normalize
+        }),
+    );
+
+    let response = EmbedResponse {
+        embedding,
+        model: model_name,
+        tokens: exact_tokens,
+        cached,
+        latency_ms: total_latency_ms,
+    };
 
     Ok((StatusCode::OK, headers, Json(response)).into_response())
 }

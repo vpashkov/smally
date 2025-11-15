@@ -130,9 +130,13 @@ impl EmbeddingModel {
 
         let inference_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
 
+        // Count actual tokens (excluding padding)
+        // attention_mask is 1 for real tokens, 0 for padding
+        let actual_tokens = encoding.attention_mask.iter().filter(|&&x| x == 1).count();
+
         let metadata = Metadata {
             model: model_name,
-            tokens: encoding.input_ids.len(),
+            tokens: actual_tokens,  // Actual tokens, not padded length
             inference_time_ms: (inference_time_ms * 100.0).round() / 100.0,
         };
 
