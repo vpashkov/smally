@@ -37,7 +37,7 @@ pub struct CreateAPIKeyForm {
 /// Show organization detail with API keys
 pub async fn show(
     session: SessionCookie,
-    Path(org_id): Path<i64>,
+    Path(org_id): Path<Uuid>,
     Query(query): Query<OrganizationsQuery>,
 ) -> Result<Markup, Response> {
     let pool = database::get_db();
@@ -192,7 +192,7 @@ pub async fn show(
 }
 
 /// Render API keys table
-fn api_keys_table(api_keys: &[APIKey], org_id: i64) -> Markup {
+fn api_keys_table(api_keys: &[APIKey], org_id: uuid::Uuid) -> Markup {
     html! {
         div class="bg-white shadow overflow-hidden sm:rounded-lg" {
             table class="min-w-full divide-y divide-gray-200" {
@@ -259,7 +259,7 @@ fn api_keys_table(api_keys: &[APIKey], org_id: i64) -> Markup {
 }
 
 /// Create API key modal
-fn create_api_key_modal(org_id: i64, auto_open: bool) -> Markup {
+fn create_api_key_modal(org_id: uuid::Uuid, auto_open: bool) -> Markup {
     let modal_class = if auto_open {
         "fixed z-10 inset-0 overflow-y-auto"
     } else {
@@ -332,14 +332,14 @@ fn create_api_key_modal(org_id: i64, auto_open: bool) -> Markup {
 /// Handle API key creation
 pub async fn create(
     session: SessionCookie,
-    Path(org_id): Path<i64>,
+    Path(org_id): Path<Uuid>,
     Form(form): Form<CreateAPIKeyForm>,
 ) -> Result<Response, Response> {
     let pool = database::get_db();
     let user_id = session.user_id();
 
     // Check user has access to this organization
-    let _org = sqlx::query_scalar::<_, i64>(
+    let _org = sqlx::query_scalar::<_, Uuid>(
         "SELECT o.id FROM organizations o
          INNER JOIN organization_members om ON o.id = om.organization_id
          WHERE o.id = $1 AND om.user_id = $2",
@@ -376,8 +376,7 @@ pub async fn create(
 
     // Create token data
     let token_data = TokenData {
-        expiration: (Utc::now() + chrono::Duration::days(3650)).timestamp(), // 10 years
-        user_id,
+        org_id,
         key_id,
         tier: org_tier,
         max_tokens: max_tokens as i32,
@@ -461,7 +460,7 @@ pub async fn create(
 /// Handle API key revocation
 pub async fn revoke(
     session: SessionCookie,
-    Path((org_id, key_id)): Path<(i64, i64)>,
+    Path((org_id, key_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Response, Response> {
     let pool = database::get_db();
     let user_id = session.user_id();

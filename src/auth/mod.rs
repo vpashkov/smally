@@ -22,12 +22,9 @@ pub mod session;
 /// CBOR-encoded token data (ultra-compact binary format with fixed-length fields)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenData {
-    /// Expiration time (Unix timestamp)
-    #[serde(rename = "e")]
-    pub expiration: i64,
-    /// User ID
-    #[serde(rename = "u")]
-    pub user_id: i64,
+    /// Organization ID (UUIDv7 - time-ordered, 16 bytes fixed)
+    #[serde(rename = "o")]
+    pub org_id: Uuid,
     /// API key ID (UUIDv7 - time-ordered, 16 bytes fixed)
     #[serde(rename = "k")]
     pub key_id: Uuid,
@@ -81,9 +78,9 @@ impl TokenClaims {
         Ok(Self { data })
     }
 
-    /// Get user_id
-    pub fn user_id(&self) -> i64 {
-        self.data.user_id
+    /// Get org_id
+    pub fn org_id(&self) -> Uuid {
+        self.data.org_id
     }
 
     /// Get key_id
@@ -94,12 +91,6 @@ impl TokenClaims {
     /// Get tier
     pub fn tier(&self) -> Result<TierType, anyhow::Error> {
         Ok(self.data.tier)
-    }
-
-    /// Get expiration
-    pub fn exp(&self) -> Result<DateTime<Utc>, anyhow::Error> {
-        DateTime::from_timestamp(self.data.expiration, 0)
-            .ok_or_else(|| anyhow::anyhow!("Invalid timestamp"))
     }
 
     /// Get max_tokens
@@ -125,20 +116,13 @@ pub fn sign_token_direct(
     token_data: &TokenData,
     signing_key: &ed25519_dalek::SigningKey,
 ) -> Result<String, anyhow::Error> {
-    // Validate timestamp is reasonable (not negative, not absurdly far in future)
-    if token_data.expiration < 0 {
-        return Err(anyhow!("Invalid expiration: timestamp cannot be negative"));
-    }
-    // Max year ~2100 (4102444800 = 2100-01-01 00:00:00 UTC)
-    if token_data.expiration > 4102444800 {
-        return Err(anyhow!("Invalid expiration: timestamp too far in future"));
-    }
-
-    // Build CWT ClaimsSet with standard and custom claims
+    // Build CWT ClaimsSet with custom claims
     // Use text claims for compact encoding (single-letter keys)
     let claims = ClaimsSetBuilder::new()
-        .subject(token_data.user_id.to_string())
-        .expiration_time(Timestamp::WholeSeconds(token_data.expiration))
+        .text_claim(
+            "o".to_string(),
+            ciborium::value::Value::Text(token_data.org_id.to_string()),
+        )
         .text_claim(
             "k".to_string(),
             ciborium::value::Value::Text(token_data.key_id.to_string()),
@@ -251,21 +235,8 @@ pub fn verify_token_direct(
     let claims = coset::cwt::ClaimsSet::from_slice(payload)
         .map_err(|e| anyhow!("Invalid CWT ClaimsSet: {}", e))?;
 
-    // Extract standard claims
-    let user_id: i64 = claims
-        .subject
-        .as_ref()
-        .ok_or_else(|| anyhow!("Missing subject claim"))?
-        .parse()
-        .map_err(|e| anyhow!("Invalid subject (user_id): {}", e))?;
-
-    let expiration = match claims.expiration_time {
-        Some(Timestamp::WholeSeconds(secs)) => secs,
-        Some(Timestamp::FractionalSeconds(secs)) => secs as i64,
-        None => return Err(anyhow!("Missing expiration_time claim")),
-    };
-
     // Extract custom text claims
+    let mut org_id_str = None;
     let mut key_id_str = None;
     let mut tier_value = None;
     let mut max_tokens_value = None;
@@ -273,6 +244,11 @@ pub fn verify_token_direct(
 
     for (name, value) in &claims.rest {
         match name {
+            coset::cwt::ClaimName::Text(key) if key == "o" => {
+                if let ciborium::value::Value::Text(s) = value {
+                    org_id_str = Some(s.clone());
+                }
+            }
             coset::cwt::ClaimName::Text(key) if key == "k" => {
                 if let ciborium::value::Value::Text(s) = value {
                     key_id_str = Some(s.clone());
@@ -304,6 +280,9 @@ pub fn verify_token_direct(
     }
 
     // Reconstruct TokenData from extracted claims
+    let org_id = org_id_str.ok_or_else(|| anyhow!("Missing 'o' (org_id) claim"))?;
+    let org_id = Uuid::parse_str(&org_id).map_err(|e| anyhow!("Invalid org_id UUID: {}", e))?;
+
     let key_id = key_id_str.ok_or_else(|| anyhow!("Missing 'k' (key_id) claim"))?;
     let key_id = Uuid::parse_str(&key_id).map_err(|e| anyhow!("Invalid key_id UUID: {}", e))?;
 
@@ -316,8 +295,7 @@ pub fn verify_token_direct(
         monthly_quota_value.ok_or_else(|| anyhow!("Missing 'q' (monthly_quota) claim"))?;
 
     let token_data = TokenData {
-        expiration,
-        user_id,
+        org_id,
         key_id,
         tier,
         max_tokens,
@@ -382,12 +360,7 @@ impl TokenValidator {
         )?;
         let claims = verify_token_direct(token, &verifying_key)?;
 
-        // Step 2: Check expiration
-        if claims.exp()? < Utc::now() {
-            return Err(anyhow!("Token expired"));
-        }
-
-        // Step 3: Check revocation with stale-while-revalidate
+        // Step 2: Check revocation with stale-while-revalidate
         let key_id = claims.key_id().to_string();
 
         if let Some(status) = self.revocation_cache.get(&key_id) {

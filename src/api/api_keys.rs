@@ -20,11 +20,11 @@ use super::users::ApiError;
 /// Create a new API key (CWT token) for an organization
 pub async fn create_api_key_handler(
     claims: SessionClaims,
-    Path(org_id): Path<i64>,
+    Path(org_id): Path<uuid::Uuid>,
     Json(payload): Json<CreateAPIKeyRequest>,
 ) -> Result<Response, ApiError> {
     let pool = database::get_db();
-    let user_id: i64 = claims
+    let user_id: uuid::Uuid = claims
         .sub
         .parse()
         .map_err(|_| ApiError::Unauthorized("Invalid user ID".to_string()))?;
@@ -92,12 +92,10 @@ pub async fn create_api_key_handler(
     );
 
     // Create token data
-    let expiration = Utc::now() + chrono::Duration::days(365); // 1 year expiration
     let (max_tokens, monthly_quota) = get_tier_limits(tier);
 
     let token_data = TokenData {
-        expiration: expiration.timestamp(),
-        user_id, // For backward compatibility tracking
+        org_id,
         key_id,
         tier,
         max_tokens: max_tokens as i32,

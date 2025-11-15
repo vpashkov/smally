@@ -58,7 +58,7 @@ impl<'de> Deserialize<'de> for TierType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
-    pub id: i64,
+    pub id: Uuid,
     pub email: String,
     pub name: Option<String>,
     #[serde(skip_serializing)]
@@ -82,10 +82,10 @@ pub enum OrganizationRole {
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Organization {
-    pub id: i64,
+    pub id: Uuid,
     pub name: String,
     pub slug: String,
-    pub owner_id: i64,
+    pub owner_id: Uuid,
     pub tier: TierType,
     pub is_active: bool,
     pub created_at: NaiveDateTime,
@@ -95,17 +95,17 @@ pub struct Organization {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct OrganizationMember {
-    pub id: i64,
-    pub organization_id: i64,
-    pub user_id: i64,
+    pub id: Uuid,
+    pub organization_id: Uuid,
+    pub user_id: Uuid,
     pub role: OrganizationRole,
     pub created_at: NaiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct APIKey {
-    pub id: i64,
-    pub organization_id: i64,
+    pub id: Uuid,
+    pub organization_id: Uuid,
     pub key_id: Uuid,
     pub name: String,
     pub is_active: bool,
@@ -116,10 +116,9 @@ pub struct APIKey {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Usage {
-    pub id: i64,
-    pub organization_id: i64,
-    pub user_id: i64, // Kept for backward compatibility
-    pub api_key_id: Option<i64>,
+    pub id: Uuid,
+    pub organization_id: Uuid,
+    pub api_key_id: Option<Uuid>,
     pub embeddings_count: i32,
     pub timestamp: NaiveDateTime,
 }
@@ -155,7 +154,7 @@ pub struct AuthResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserResponse {
-    pub id: i64,
+    pub id: Uuid,
     pub email: String,
     pub name: Option<String>,
     pub is_active: bool,
@@ -171,7 +170,7 @@ pub struct CreateOrganizationRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OrganizationResponse {
-    pub id: i64,
+    pub id: Uuid,
     pub name: String,
     pub slug: String,
     pub tier: TierType,
@@ -188,7 +187,7 @@ pub struct CreateAPIKeyRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct APIKeyResponse {
-    pub id: i64,
+    pub id: Uuid,
     pub key_id: Uuid,
     pub name: String,
     pub is_active: bool,

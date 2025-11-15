@@ -17,8 +17,8 @@ use crate::models::{APIKey, TierType, User};
 // Usage record for batching
 #[derive(Clone, Debug)]
 struct UsageRecord {
-    user_id: i64,
-    api_key_id: i64,
+    user_id: uuid::Uuid,
+    api_key_id: uuid::Uuid,
     embeddings_count: i32,
     timestamp: NaiveDateTime,
 }
@@ -45,7 +45,7 @@ impl UsageBuffer {
     }
 
     // Record a usage event (non-blocking)
-    pub fn record(&self, user_id: i64, api_key_id: i64) {
+    pub fn record(&self, user_id: uuid::Uuid, api_key_id: uuid::Uuid) {
         let now = chrono::Local::now().naive_local();
         let record = UsageRecord {
             user_id,
@@ -339,7 +339,7 @@ pub async fn increment_usage(user: &User, api_key: &APIKey) -> Result<()> {
 
 // Increment Redis counter for rate limiting
 #[allow(dead_code)]
-async fn increment_redis_counter(user_id: i64, api_key_id: i64) -> Result<()> {
+async fn increment_redis_counter(user_id: uuid::Uuid, api_key_id: uuid::Uuid) -> Result<()> {
     // Use global Redis connection (reused across requests)
     let mut conn = get_redis_connection().clone();
 
@@ -388,8 +388,8 @@ pub async fn check_rate_limit_from_claims(
         TierType::Free => {
             // Free tier: check Redis quota
             info!(
-                "Checking rate limit for free tier user {}",
-                claims.user_id()
+                "Checking rate limit for free tier org {}",
+                claims.org_id()
             );
             check_rate_limit_redis_from_claims(claims).await
         }
@@ -405,14 +405,14 @@ async fn check_rate_limit_redis_from_claims(
 
     // Get current month for key
     let now = Utc::now();
-    let month_key = format!("ratelimit:{}:{}", claims.user_id(), now.format("%Y-%m"));
+    let month_key = format!("ratelimit:{}:{}", claims.org_id(), now.format("%Y-%m"));
 
     // Get current count from Redis
     let count: i64 = conn.get(&month_key).await.unwrap_or(0);
 
     info!(
-        "Redis rate limit check: user {} count {}",
-        claims.user_id(),
+        "Redis rate limit check: org {} count {}",
+        claims.org_id(),
         count
     );
 
@@ -447,16 +447,15 @@ async fn check_rate_limit_redis_from_claims(
 
 /// Increment usage using token claims (no DB needed for lookup)
 pub async fn increment_usage_from_claims(claims: &TokenClaims) -> Result<()> {
-    let user_id = claims.user_id();
-    // For API key ID, we'll hash the key_id from the token
-    let api_key_id = hash_key_id(claims.key_id());
+    let org_id = claims.org_id();
+    let api_key_id = claims.key_id();
     let tier = claims.tier()?;
 
     // Only increment Redis counter for free tier (they have quotas)
     match tier {
         TierType::Free => {
             tokio::spawn(async move {
-                if let Err(e) = increment_redis_counter_simple(user_id).await {
+                if let Err(e) = increment_redis_counter_simple(org_id).await {
                     info!("Failed to increment Redis counter for free tier: {}", e);
                 }
             });
@@ -467,13 +466,13 @@ pub async fn increment_usage_from_claims(claims: &TokenClaims) -> Result<()> {
     }
 
     // Buffer the usage record (for billing/analytics)
-    get_usage_buffer().record(user_id, api_key_id);
+    get_usage_buffer().record(org_id, api_key_id);
 
     Ok(())
 }
 
 /// Increment Redis counter (simplified - no API key ID)
-async fn increment_redis_counter_simple(user_id: i64) -> Result<()> {
+async fn increment_redis_counter_simple(user_id: uuid::Uuid) -> Result<()> {
     let mut conn = get_redis_connection().clone();
 
     // Get current month for key

@@ -101,14 +101,14 @@ pub async fn create_organization_handler(
 /// List user's organizations
 pub async fn list_organizations_handler(claims: SessionClaims) -> Result<Response, ApiError> {
     let pool = database::get_db();
-    let user_id: i64 = claims
+    let user_id: uuid::Uuid = claims
         .sub
         .parse()
         .map_err(|_| ApiError::Unauthorized("Invalid user ID".to_string()))?;
 
     #[derive(sqlx::FromRow)]
     struct OrgWithRole {
-        id: i64,
+        id: uuid::Uuid,
         name: String,
         slug: String,
         tier: TierType,
@@ -148,17 +148,17 @@ pub async fn list_organizations_handler(claims: SessionClaims) -> Result<Respons
 /// Get organization by ID
 pub async fn get_organization_handler(
     claims: SessionClaims,
-    Path(org_id): Path<i64>,
+    Path(org_id): Path<uuid::Uuid>,
 ) -> Result<Response, ApiError> {
     let pool = database::get_db();
-    let user_id: i64 = claims
+    let user_id: uuid::Uuid = claims
         .sub
         .parse()
         .map_err(|_| ApiError::Unauthorized("Invalid user ID".to_string()))?;
 
     #[derive(sqlx::FromRow)]
     struct OrgWithRole {
-        id: i64,
+        id: uuid::Uuid,
         name: String,
         slug: String,
         tier: TierType,

@@ -26,7 +26,7 @@ pub struct SessionClaims {
 }
 
 /// Generate a JWT session token for a user
-pub fn create_session_token(user_id: i64, email: &str) -> Result<String> {
+pub fn create_session_token(user_id: uuid::Uuid, email: &str) -> Result<String> {
     let settings = config::get_settings();
 
     let now = Utc::now();
@@ -94,8 +94,8 @@ pub struct SessionCookie {
 }
 
 impl SessionCookie {
-    pub fn user_id(&self) -> i64 {
-        self.claims.sub.parse().unwrap_or(0)
+    pub fn user_id(&self) -> uuid::Uuid {
+        uuid::Uuid::parse_str(&self.claims.sub).unwrap_or_default()
     }
 
     pub fn email(&self) -> &str {
