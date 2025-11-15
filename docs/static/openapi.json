@@ -154,23 +154,6 @@
           {
             "bearer_auth": []
           }
-        ],
-        "x-code-samples": [
-          {
-            "label": "cURL",
-            "lang": "Shell",
-            "source": "curl -X POST \"http://localhost:8000/v1/embed\" \\\n  -H \"Authorization: Bearer YOUR_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"text\": \"Hello world\", \"normalize\": false}'"
-          },
-          {
-            "label": "JavaScript",
-            "lang": "JavaScript",
-            "source": "const response = await fetch('http://localhost:8000/v1/embed', {\n  method: 'POST',\n  headers: {\n    'Authorization': 'Bearer YOUR_API_KEY',\n    'Content-Type': 'application/json'\n  },\n  body: JSON.stringify({\n    text: 'Hello world',\n    normalize: false\n  })\n});\nconst data = await response.json();"
-          },
-          {
-            "label": "Python",
-            "lang": "Python",
-            "source": "import requests\n\nresponse = requests.post(\n    'http://localhost:8000/v1/embed',\n    headers={\n        'Authorization': 'Bearer YOUR_API_KEY',\n        'Content-Type': 'application/json'\n    },\n    json={\n        'text': 'Hello world',\n        'normalize': False\n    }\n)\ndata = response.json()"
-          }
         ]
       }
     }
@@ -358,8 +341,8 @@
       "bearer_auth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "Enter your API key (with or without fe_ prefix)"
+        "bearerFormat": "API-Token",
+        "description": "Enter your API key"
       }
     }
   },
