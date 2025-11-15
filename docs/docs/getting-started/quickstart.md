@@ -21,7 +21,7 @@ This will output your API key:
 
 ```
 API Key created successfully!
-Key: fe_abc123def456...
+Key: sk_abc123def456...
 ```
 
 Save this key - you won't be able to see it again!
@@ -32,7 +32,7 @@ Use your API key to create an embedding:
 
 ```bash
 curl -X POST "http://localhost:8000/v1/embed" \
-  -H "Authorization: Bearer fe_abc123def456..." \
+  -H "Authorization: Bearer sk_abc123def456..." \
   -H "Content-Type: application/json" \
   -d '{
     "text": "The quick brown fox jumps over the lazy dog",
@@ -62,7 +62,7 @@ http://localhost:8000/swagger-ui
 ```
 
 1. Click **Authorize** in the top right
-2. Enter your API key (with or without the `fe_` prefix)
+2. Enter your API key
 3. Click **Authorize** then **Close**
 4. Try the **POST /v1/embed** endpoint
 
@@ -97,7 +97,7 @@ import requests
 response = requests.post(
     'http://localhost:8000/v1/embed',
     headers={
-        'Authorization': 'Bearer fe_abc123def456...',
+        'Authorization': 'Bearer sk_abc123def456...',
         'Content-Type': 'application/json'
     },
     json={
@@ -119,7 +119,7 @@ const response = await fetch('http://localhost:8000/v1/embed', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer fe_abc123def456...'
+    'Authorization': 'Bearer sk_abc123def456...'
   },
   body: JSON.stringify({
     text: 'Hello world',
@@ -145,7 +145,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let response = client
         .post("http://localhost:8000/v1/embed")
-        .header("Authorization", "Bearer fe_abc123def456...")
+        .header("Authorization", "Bearer sk_abc123def456...")
         .json(&json!({
             "text": "Hello world",
             "normalize": false

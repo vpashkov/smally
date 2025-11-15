@@ -15,13 +15,13 @@ API keys are organization-scoped tokens that authenticate your requests to the S
 All API keys use the following format:
 
 ```
-fe_<hash>
+sk_<hash>
 ```
 
-- **Prefix**: `fe_` identifies this as a Smally API key
+- **Prefix**: `sk_` identifies this as a Smally API key
 - **Hash**: Cryptographically secure random string
 
-Example: `fe_33c3842b326b85e8a50485ea0a5ad72eb66d68694f0bed52e0fd923813ec1ed9`
+Example: `sk_33c3842b326b85e8a50485ea0a5ad72eb66d68694f0bed52e0fd923813ec1ed9`
 
 ### Creating API Keys
 
@@ -47,17 +47,13 @@ cargo run --bin create_api_key -- \
 Include your API key in the `Authorization` header:
 
 ```bash
-curl -H "Authorization: Bearer fe_YOUR_API_KEY" \
+curl -H "Authorization: Bearer YOUR_API_KEY" \
   http://localhost:8000/v1/embed
 ```
 
-The `fe_` prefix is optional - the API strips it automatically:
-
 ```bash
 # Both work the same
-Authorization: Bearer fe_abc123...
-Authorization: Bearer abc123...
-```
+Authorization: Bearer sk_abc123...
 
 ## Security Best Practices
 
@@ -69,24 +65,24 @@ Authorization: Bearer abc123...
 
 ```bash
 # Good: Use environment variable
-export SMALLY_API_KEY="fe_abc123..."
+export SMALLY_API_KEY="sk_abc123..."
 curl -H "Authorization: Bearer $SMALLY_API_KEY" ...
 
 # Bad: Hardcoded in script
-curl -H "Authorization: Bearer fe_abc123..." ...
+curl -H "Authorization: Bearer sk_abc123..." ...
 ```
 
 ### Use Different Keys for Different Environments
 
 ```bash
 # Development
-SMALLY_API_KEY_DEV="fe_dev_key..."
+SMALLY_API_KEY_DEV="sk_dev_key..."
 
 # Staging
-SMALLY_API_KEY_STAGING="fe_staging_key..."
+SMALLY_API_KEY_STAGING="sk_staging_key..."
 
 # Production
-SMALLY_API_KEY_PROD="fe_prod_key..."
+SMALLY_API_KEY_PROD="sk_prod_key..."
 ```
 
 ### Revoke Compromised Keys
@@ -174,6 +170,7 @@ Invalid or missing API key:
 ```
 
 Common causes:
+
 - Missing `Authorization` header
 - Invalid key format
 - Revoked key

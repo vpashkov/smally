@@ -19,7 +19,7 @@ All API endpoints require authentication via Bearer token:
 
 ```http
 POST /v1/embed
-Authorization: Bearer fe_YOUR_API_KEY
+Authorization: Bearer sk_YOUR_API_KEY
 Content-Type: application/json
 ```
 
@@ -154,6 +154,7 @@ See [Error Handling](/docs/api/errors) for all error types.
 All endpoints (except `/health` and `/api`) are rate limited.
 
 **Headers:**
+
 - `X-RateLimit-Limit`: Monthly quota
 - `X-RateLimit-Remaining`: Requests remaining
 - `X-RateLimit-Reset`: Reset timestamp

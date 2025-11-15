@@ -72,7 +72,18 @@ const config = {
               categoryLinkSource: "tag",
             },
           }
-        }
+        },
+        options: {
+          languageTabs: [
+            { label: "cURL", language: "bash" },
+            { label: "Node.js", language: "javascript" },
+            { label: "Python", language: "python" },
+            { label: "Go", language: "go" },
+            { label: "Java", language: "java" },
+            { label: "PHP", language: "php" },
+            { label: "Ruby", language: "ruby" },
+          ],
+        },
       },
     ],
   ],

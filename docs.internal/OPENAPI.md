@@ -44,7 +44,7 @@ Navigate to `http://localhost:8000/swagger-ui` in your browser.
 
 Click the **Authorize** button at the top right:
 
-1. Enter your API key (with or without the `fe_` prefix)
+1. Enter your API key
 2. Click **Authorize**
 3. Click **Close**
 
@@ -87,10 +87,8 @@ Endpoints are organized by tags:
 All endpoints requiring authentication use Bearer token authentication:
 
 ```
-Authorization: Bearer fe_YOUR_API_KEY
+Authorization: Bearer YOUR_API_KEY
 ```
-
-The `fe_` prefix is optional - the API strips it automatically.
 
 ### Schemas
 
@@ -110,7 +108,7 @@ The Swagger UI generates curl commands for each request:
 ```bash
 curl -X POST "http://localhost:8000/v1/embed" \
   -H "accept: application/json" \
-  -H "Authorization: Bearer fe_YOUR_API_KEY" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"text":"Hello world","normalize":false}'
 ```
@@ -122,7 +120,7 @@ const response = await fetch('http://localhost:8000/v1/embed', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer fe_YOUR_API_KEY'
+    'Authorization': 'Bearer YOUR_API_KEY'
   },
   body: JSON.stringify({
     text: 'Hello world',
@@ -144,7 +142,7 @@ import requests
 response = requests.post(
     'http://localhost:8000/v1/embed',
     headers={
-        'Authorization': 'Bearer fe_YOUR_API_KEY',
+        'Authorization': 'Bearer YOUR_API_KEY',
         'Content-Type': 'application/json'
     },
     json={

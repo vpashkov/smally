@@ -342,7 +342,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Enter your API key (with or without fe_ prefix)"
+        "description": "Enter your API key"
       }
     }
   },

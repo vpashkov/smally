@@ -211,10 +211,10 @@ Use different API keys and organizations:
 
 ```python
 # Development (Free tier - 10k/month)
-DEV_API_KEY = "fe_dev_..."
+DEV_API_KEY = "sk_dev_..."
 
 # Production (Pro tier - 100k/month)
-PROD_API_KEY = "fe_prod_..."
+PROD_API_KEY = "sk_prod_..."
 ```
 
 This prevents dev/testing from consuming production quota.
@@ -286,7 +286,7 @@ Enterprise tier offers:
 - **SLA guarantees**
 - **Priority support**
 
-Contact sales: sales@smally.ai
+Contact sales: <sales@smally.ai>
 
 ## Troubleshooting
 
@@ -297,12 +297,14 @@ Contact sales: sales@smally.ai
 **Possible causes:**
 
 1. **Multiple API keys**: All keys in org share quota
+
    ```bash
    # Check all keys in your organization
    curl http://localhost:8000/v1/organizations/ORG_ID/keys
    ```
 
 2. **Uncached requests**: Not leveraging cache effectively
+
    ```python
    # Add logging to check cache hit rate
    if response['cached']:
@@ -310,6 +312,7 @@ Contact sales: sales@smally.ai
    ```
 
 3. **Testing in production**: Dev/test using production keys
+
    ```python
    # Use separate keys
    if ENV == 'development':

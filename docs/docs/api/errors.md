@@ -44,6 +44,7 @@ The request body is malformed or contains invalid parameters.
 ```
 
 **Common causes:**
+
 - Empty `text` field
 - Invalid JSON
 - Missing required fields
@@ -131,6 +132,7 @@ API key is missing, invalid, or revoked.
 ```
 
 **Common causes:**
+
 - Missing `Authorization` header
 - Malformed Bearer token
 - Revoked API key
@@ -142,7 +144,7 @@ API key is missing, invalid, or revoked.
 ```python
 # ✅ Good
 headers = {
-    'Authorization': 'Bearer fe_abc123...'
+    'Authorization': 'Bearer sk_abc123...'
 }
 
 # ❌ Bad - missing Authorization
@@ -152,7 +154,7 @@ headers = {
 
 # ❌ Bad - wrong format
 headers = {
-    'Authorization': 'fe_abc123...'  # Missing "Bearer"
+    'Authorization': 'sk_abc123...'  # Missing "Bearer"
 }
 
 # ❌ Bad - using wrong key
@@ -215,6 +217,7 @@ Unexpected server error.
 ```
 
 **Common causes:**
+
 - Database connection failure
 - Redis connection failure
 - Model loading error
@@ -245,6 +248,7 @@ def embed_with_retry(text, max_retries=3):
 ```
 
 If errors persist, check:
+
 - Server logs
 - Database connectivity
 - Redis connectivity
