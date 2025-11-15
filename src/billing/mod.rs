@@ -17,7 +17,7 @@ use crate::models::TierType;
 // Usage record for batching
 #[derive(Clone, Debug)]
 struct UsageRecord {
-    user_id: uuid::Uuid,
+    organization_id: uuid::Uuid,
     api_key_id: uuid::Uuid,
     embeddings_count: i32,
     timestamp: NaiveDateTime,
@@ -45,10 +45,10 @@ impl UsageBuffer {
     }
 
     // Record a usage event (non-blocking)
-    pub fn record(&self, user_id: uuid::Uuid, api_key_id: uuid::Uuid) {
+    pub fn record(&self, organization_id: uuid::Uuid, api_key_id: uuid::Uuid) {
         let now = chrono::Local::now().naive_local();
         let record = UsageRecord {
-            user_id,
+            organization_id,
             api_key_id,
             embeddings_count: 1,
             timestamp: now,
@@ -75,11 +75,11 @@ impl UsageBuffer {
 
         // Batch insert using QueryBuilder
         let mut query_builder = sqlx::QueryBuilder::new(
-            "INSERT INTO usage (user_id, api_key_id, embeddings_count, timestamp) ",
+            "INSERT INTO usage (organization_id, api_key_id, embeddings_count, timestamp) ",
         );
 
         query_builder.push_values(records, |mut b, record| {
-            b.push_bind(record.user_id)
+            b.push_bind(record.organization_id)
                 .push_bind(record.api_key_id)
                 .push_bind(record.embeddings_count)
                 .push_bind(record.timestamp);
