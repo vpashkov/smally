@@ -3,7 +3,6 @@ use axum::{
     http::{header, StatusCode},
     response::{IntoResponse, Redirect, Response},
 };
-use axum_extra::extract::cookie::Cookie;
 use maud::{html, Markup};
 use serde::Deserialize;
 
@@ -50,148 +49,154 @@ pub struct RegisterForm {
 /// Show login page
 pub async fn login_page(Query(redirect): Query<RedirectQuery>) -> Markup {
     let next = redirect.next.as_deref().unwrap_or("/dashboard");
-    layout::base("Login", html! {
-        div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" {
-            div class="max-w-md w-full space-y-8" {
-                div {
-                    h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900" {
-                        "Sign in to your account"
-                    }
-                    p class="mt-2 text-center text-sm text-gray-600" {
-                        "Or "
-                        a href="/register" class="font-medium text-primary hover:text-blue-500" {
-                            "create a new account"
-                        }
-                    }
-                }
-
-                // Login form
-                form class="mt-8 space-y-6" action="/login" method="POST" {
-                    input type="hidden" name="remember" value="true";
-                    input type="hidden" name="next" value=(next);
-
-                    div class="rounded-md shadow-sm -space-y-px" {
-                        div {
-                            label for="email" class="sr-only" { "Email address" }
-                            input
-                                id="email"
-                                name="email"
-                                type="email"
-                                autocomplete="email"
-                                required
-                                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
-                                placeholder="Email address";
-                        }
-                        div {
-                            label for="password" class="sr-only" { "Password" }
-                            input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autocomplete="current-password"
-                                required
-                                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
-                                placeholder="Password";
-                        }
-                    }
-
-                    div class="flex items-center justify-between" {
-                        div class="flex items-center" {
-                            input
-                                id="remember-me"
-                                name="remember-me"
-                                type="checkbox"
-                                class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded";
-                            label for="remember-me" class="ml-2 block text-sm text-gray-900" {
-                                "Remember me"
-                            }
-                        }
-
-                        div class="text-sm" {
-                            a href="#" class="font-medium text-primary hover:text-blue-500" {
-                                "Forgot your password?"
-                            }
-                        }
-                    }
-
+    layout::base(
+        "Login",
+        html! {
+            div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" {
+                div class="max-w-md w-full space-y-8" {
                     div {
-                        button
-                            type="submit"
-                            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
-                            "Sign in"
+                        h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900" {
+                            "Sign in to your account"
+                        }
+                        p class="mt-2 text-center text-sm text-gray-600" {
+                            "Or "
+                            a href="/register" class="font-medium text-primary hover:text-blue-500" {
+                                "create a new account"
+                            }
+                        }
+                    }
+
+                    // Login form
+                    form class="mt-8 space-y-6" action="/login" method="POST" {
+                        input type="hidden" name="remember" value="true";
+                        input type="hidden" name="next" value=(next);
+
+                        div class="rounded-md shadow-sm -space-y-px" {
+                            div {
+                                label for="email" class="sr-only" { "Email address" }
+                                input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    autocomplete="email"
+                                    required
+                                    class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                                    placeholder="Email address";
+                            }
+                            div {
+                                label for="password" class="sr-only" { "Password" }
+                                input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    autocomplete="current-password"
+                                    required
+                                    class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                                    placeholder="Password";
+                            }
+                        }
+
+                        div class="flex items-center justify-between" {
+                            div class="flex items-center" {
+                                input
+                                    id="remember-me"
+                                    name="remember-me"
+                                    type="checkbox"
+                                    class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded";
+                                label for="remember-me" class="ml-2 block text-sm text-gray-900" {
+                                    "Remember me"
+                                }
+                            }
+
+                            div class="text-sm" {
+                                a href="#" class="font-medium text-primary hover:text-blue-500" {
+                                    "Forgot your password?"
+                                }
+                            }
+                        }
+
+                        div {
+                            button
+                                type="submit"
+                                class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
+                                "Sign in"
+                            }
                         }
                     }
                 }
             }
-        }
-    })
+        },
+    )
 }
 
 /// Show register page
 pub async fn register_page() -> Markup {
-    layout::base("Register", html! {
-        div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" {
-            div class="max-w-md w-full space-y-8" {
-                div {
-                    h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900" {
-                        "Create your account"
-                    }
-                    p class="mt-2 text-center text-sm text-gray-600" {
-                        "Already have an account? "
-                        a href="/login" class="font-medium text-primary hover:text-blue-500" {
-                            "Sign in"
-                        }
-                    }
-                }
-
-                // Register form
-                form class="mt-8 space-y-6" action="/register" method="POST" {
-                    div class="rounded-md shadow-sm space-y-4" {
-                        div {
-                            label for="name" class="block text-sm font-medium text-gray-700" { "Full name" }
-                            input
-                                id="name"
-                                name="name"
-                                type="text"
-                                required
-                                class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                                placeholder="John Doe";
-                        }
-                        div {
-                            label for="email" class="block text-sm font-medium text-gray-700" { "Email address" }
-                            input
-                                id="email"
-                                name="email"
-                                type="email"
-                                autocomplete="email"
-                                required
-                                class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                                placeholder="you@example.com";
-                        }
-                        div {
-                            label for="password" class="block text-sm font-medium text-gray-700" { "Password" }
-                            input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autocomplete="new-password"
-                                required
-                                class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                                placeholder="At least 8 characters";
-                        }
-                    }
-
+    layout::base(
+        "Register",
+        html! {
+            div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" {
+                div class="max-w-md w-full space-y-8" {
                     div {
-                        button
-                            type="submit"
-                            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
-                            "Create account"
+                        h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900" {
+                            "Create your account"
+                        }
+                        p class="mt-2 text-center text-sm text-gray-600" {
+                            "Already have an account? "
+                            a href="/login" class="font-medium text-primary hover:text-blue-500" {
+                                "Sign in"
+                            }
+                        }
+                    }
+
+                    // Register form
+                    form class="mt-8 space-y-6" action="/register" method="POST" {
+                        div class="rounded-md shadow-sm space-y-4" {
+                            div {
+                                label for="name" class="block text-sm font-medium text-gray-700" { "Full name" }
+                                input
+                                    id="name"
+                                    name="name"
+                                    type="text"
+                                    required
+                                    class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                                    placeholder="John Doe";
+                            }
+                            div {
+                                label for="email" class="block text-sm font-medium text-gray-700" { "Email address" }
+                                input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    autocomplete="email"
+                                    required
+                                    class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                                    placeholder="you@example.com";
+                            }
+                            div {
+                                label for="password" class="block text-sm font-medium text-gray-700" { "Password" }
+                                input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    autocomplete="new-password"
+                                    required
+                                    class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                                    placeholder="At least 8 characters";
+                            }
+                        }
+
+                        div {
+                            button
+                                type="submit"
+                                class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
+                                "Create account"
+                            }
                         }
                     }
                 }
             }
-        }
-    })
+        },
+    )
 }
 
 /// Handle login form submission
@@ -210,16 +215,19 @@ pub async fn login_submit(Form(form): Form<LoginForm>) -> Result<Response, Respo
         .ok_or_else(|| {
             (
                 StatusCode::UNAUTHORIZED,
-                layout::base("Login Failed", html! {
-                    div class="min-h-screen flex items-center justify-center bg-gray-50" {
-                        div class="max-w-md w-full" {
-                            (layout::alert("Invalid email or password", "error"))
-                            a href="/login" class="text-primary hover:text-blue-500" {
-                                "← Back to login"
+                layout::base(
+                    "Login Failed",
+                    html! {
+                        div class="min-h-screen flex items-center justify-center bg-gray-50" {
+                            div class="max-w-md w-full" {
+                                (layout::alert("Invalid email or password", "error"))
+                                a href="/login" class="text-primary hover:text-blue-500" {
+                                    "← Back to login"
+                                }
                             }
                         }
-                    }
-                }),
+                    },
+                ),
             )
                 .into_response()
         })?;
@@ -228,16 +236,19 @@ pub async fn login_submit(Form(form): Form<LoginForm>) -> Result<Response, Respo
     if !user.is_active {
         return Err((
             StatusCode::UNAUTHORIZED,
-            layout::base("Account Disabled", html! {
-                div class="min-h-screen flex items-center justify-center bg-gray-50" {
-                    div class="max-w-md w-full" {
-                        (layout::alert("Your account has been disabled", "error"))
-                        a href="/login" class="text-primary hover:text-blue-500" {
-                            "← Back to login"
+            layout::base(
+                "Account Disabled",
+                html! {
+                    div class="min-h-screen flex items-center justify-center bg-gray-50" {
+                        div class="max-w-md w-full" {
+                            (layout::alert("Your account has been disabled", "error"))
+                            a href="/login" class="text-primary hover:text-blue-500" {
+                                "← Back to login"
+                            }
                         }
                     }
-                }
-            }),
+                },
+            ),
         )
             .into_response());
     }
@@ -263,16 +274,19 @@ pub async fn login_submit(Form(form): Form<LoginForm>) -> Result<Response, Respo
     if !valid {
         return Err((
             StatusCode::UNAUTHORIZED,
-            layout::base("Login Failed", html! {
-                div class="min-h-screen flex items-center justify-center bg-gray-50" {
-                    div class="max-w-md w-full" {
-                        (layout::alert("Invalid email or password", "error"))
-                        a href="/login" class="text-primary hover:text-blue-500" {
-                            "← Back to login"
+            layout::base(
+                "Login Failed",
+                html! {
+                    div class="min-h-screen flex items-center justify-center bg-gray-50" {
+                        div class="max-w-md w-full" {
+                            (layout::alert("Invalid email or password", "error"))
+                            a href="/login" class="text-primary hover:text-blue-500" {
+                                "← Back to login"
+                            }
                         }
                     }
-                }
-            }),
+                },
+            ),
         )
             .into_response());
     }
@@ -299,10 +313,9 @@ pub async fn login_submit(Form(form): Form<LoginForm>) -> Result<Response, Respo
 
     // Return redirect with Set-Cookie header
     let mut response = Redirect::to(&redirect_url).into_response();
-    response.headers_mut().insert(
-        header::SET_COOKIE,
-        cookie.to_string().parse().unwrap(),
-    );
+    response
+        .headers_mut()
+        .insert(header::SET_COOKIE, cookie.to_string().parse().unwrap());
 
     Ok(response)
 }
@@ -324,16 +337,19 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Response,
     if existing.is_some() {
         return Err((
             StatusCode::BAD_REQUEST,
-            layout::base("Registration Failed", html! {
-                div class="min-h-screen flex items-center justify-center bg-gray-50" {
-                    div class="max-w-md w-full" {
-                        (layout::alert("Email already registered", "error"))
-                        a href="/register" class="text-primary hover:text-blue-500" {
-                            "← Back to registration"
+            layout::base(
+                "Registration Failed",
+                html! {
+                    div class="min-h-screen flex items-center justify-center bg-gray-50" {
+                        div class="max-w-md w-full" {
+                            (layout::alert("Email already registered", "error"))
+                            a href="/register" class="text-primary hover:text-blue-500" {
+                                "← Back to registration"
+                            }
                         }
                     }
-                }
-            }),
+                },
+            ),
         )
             .into_response());
     }
@@ -341,23 +357,18 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Response,
     // Hash password
     let password_hash = hash(&form.password, DEFAULT_COST).map_err(|e| {
         tracing::error!("Password hashing failed: {}", e);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Password hashing failed",
-        )
-            .into_response()
+        (StatusCode::INTERNAL_SERVER_ERROR, "Password hashing failed").into_response()
     })?;
 
     // Create user
     let user = sqlx::query_as::<_, User>(
-        "INSERT INTO users (email, name, password_hash, tier, is_active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        "INSERT INTO users (email, name, password_hash, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *",
     )
     .bind(&form.email)
     .bind(&form.name)
     .bind(&password_hash)
-    .bind(TierType::Free)
     .bind(true)
     .bind(Utc::now().naive_utc())
     .bind(Utc::now().naive_utc())
@@ -430,10 +441,9 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Response,
 
     // Return redirect with Set-Cookie header (auto-login after registration)
     let mut response = Redirect::to("/dashboard").into_response();
-    response.headers_mut().insert(
-        header::SET_COOKIE,
-        cookie.to_string().parse().unwrap(),
-    );
+    response
+        .headers_mut()
+        .insert(header::SET_COOKIE, cookie.to_string().parse().unwrap());
 
     Ok(response)
 }
@@ -443,10 +453,9 @@ pub async fn logout_submit() -> Response {
     let cookie = clear_session_cookie();
 
     let mut response = Redirect::to("/login").into_response();
-    response.headers_mut().insert(
-        header::SET_COOKIE,
-        cookie.to_string().parse().unwrap(),
-    );
+    response
+        .headers_mut()
+        .insert(header::SET_COOKIE, cookie.to_string().parse().unwrap());
 
     response
 }

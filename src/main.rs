@@ -29,8 +29,33 @@ async fn main() -> anyhow::Result<()> {
         println!("No .env file found, using environment variables: {}", e);
     }
 
-    // Initialize tracing
-    tracing_subscriber::fmt().with_max_level(Level::INFO).init();
+    // Enable backtraces in dev mode
+    if std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development" {
+        std::env::set_var("RUST_BACKTRACE", "1");
+    }
+
+    // Initialize tracing with better formatting for dev mode
+    let is_dev = std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development";
+
+    if is_dev {
+        // Dev mode: verbose logging with colors and full error details
+        tracing_subscriber::fmt()
+            .with_max_level(Level::DEBUG)
+            .with_target(true)
+            .with_file(true)
+            .with_line_number(true)
+            .with_thread_ids(true)
+            .with_ansi(true)
+            .pretty()
+            .init();
+    } else {
+        // Production mode: compact JSON logging
+        tracing_subscriber::fmt()
+            .with_max_level(Level::INFO)
+            .with_target(false)
+            .json()
+            .init();
+    }
 
     info!("Starting Smally API...");
 

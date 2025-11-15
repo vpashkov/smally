@@ -78,14 +78,13 @@ pub async fn register_handler(
 
     // Create user
     let user = sqlx::query_as::<_, User>(
-        "INSERT INTO users (email, name, password_hash, tier, is_active, created_at, updated_at)
+        "INSERT INTO users (email, name, password_hash, is_active, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *",
     )
     .bind(&payload.email)
     .bind(&payload.name)
     .bind(&password_hash)
-    .bind(TierType::Free)
     .bind(true)
     .bind(Utc::now().naive_utc())
     .bind(Utc::now().naive_utc())
@@ -99,7 +98,7 @@ pub async fn register_handler(
 
     let org_id = sqlx::query_scalar::<_, i64>(
         "INSERT INTO organizations (name, slug, owner_id, tier, is_active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id",
     )
     .bind(&org_name)
@@ -246,7 +245,9 @@ impl IntoResponse for ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::helpers::{cleanup_db, create_test_admin_token, create_test_user, setup};
+    use crate::test_utils::helpers::{
+        cleanup_db, create_test_admin_token, create_test_user, setup,
+    };
     use axum::{
         body::Body,
         http::{Request, StatusCode},
