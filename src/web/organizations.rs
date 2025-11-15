@@ -27,7 +27,6 @@ pub struct OrganizationsQuery {
 struct OrganizationWithRole {
     id: uuid::Uuid,
     name: String,
-    slug: String,
     tier: TierType,
     is_active: bool,
     role: OrganizationRole,
@@ -37,7 +36,6 @@ struct OrganizationWithRole {
 #[derive(Debug, Deserialize)]
 pub struct CreateOrganizationForm {
     pub name: String,
-    pub slug: String,
 }
 
 /// List all organizations for the current user
@@ -51,7 +49,7 @@ pub async fn list(
     // Fetch organizations where user is a member
     let organizations = sqlx::query_as::<_, OrganizationWithRole>(
         r#"
-        SELECT o.id, o.name, o.slug, o.tier, o.is_active, om.role
+        SELECT o.id, o.name, o.tier, o.is_active, om.role
         FROM organizations o
         INNER JOIN organization_members om ON o.id = om.organization_id
         WHERE om.user_id = $1
@@ -167,9 +165,6 @@ fn organization_card(org: &OrganizationWithRole) -> Markup {
                         }
                     }
                 }
-                p class="mt-1 text-sm text-gray-500" {
-                    "Slug: " span class="font-mono" { (org.slug) }
-                }
                 div class="mt-4 flex items-center space-x-2" {
                     span class=(format!("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {}", tier_badge.0)) {
                         (tier_badge.1)
@@ -236,22 +231,6 @@ fn create_organization_modal(auto_open: bool) -> Markup {
                                                 class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                                                 placeholder="Acme Inc.";
                                         }
-                                        div {
-                                            label for="slug" class="block text-sm font-medium text-gray-700" {
-                                                "Slug"
-                                            }
-                                            input
-                                                type="text"
-                                                name="slug"
-                                                id="slug"
-                                                required
-                                                pattern="[a-z0-9-]+"
-                                                class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                                                placeholder="acme-inc";
-                                            p class="mt-1 text-xs text-gray-500" {
-                                                "Lowercase letters, numbers, and hyphens only"
-                                            }
-                                        }
                                     }
                                     div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense" {
                                         button
@@ -284,64 +263,13 @@ pub async fn create(
     let pool = database::get_db();
     let user_id = session.user_id();
 
-    // Validate slug format
-    if !form
-        .slug
-        .chars()
-        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
-    {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            layout::base("Invalid Slug", html! {
-                div class="min-h-screen flex items-center justify-center bg-gray-50" {
-                    div class="max-w-md w-full" {
-                        (layout::alert("Slug must contain only lowercase letters, numbers, and hyphens", "error"))
-                        a href="/organizations" class="text-primary hover:text-blue-500" {
-                            "← Back to organizations"
-                        }
-                    }
-                }
-            }),
-        )
-            .into_response());
-    }
-
-    // Check if slug is already taken
-    let existing =
-        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM organizations WHERE slug = $1")
-            .bind(&form.slug)
-            .fetch_one(pool)
-            .await
-            .map_err(|e| {
-                tracing::error!("Database error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
-            })?;
-
-    if existing > 0 {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            layout::base("Slug Taken", html! {
-                div class="min-h-screen flex items-center justify-center bg-gray-50" {
-                    div class="max-w-md w-full" {
-                        (layout::alert("This slug is already taken. Please choose another.", "error"))
-                        a href="/organizations" class="text-primary hover:text-blue-500" {
-                            "← Back to organizations"
-                        }
-                    }
-                }
-            }),
-        )
-            .into_response());
-    }
-
     // Create organization
     let org_id = sqlx::query_scalar::<_, uuid::Uuid>(
-        "INSERT INTO organizations (name, slug, owner_id, tier, is_active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        "INSERT INTO organizations (name, owner_id, tier, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id",
     )
     .bind(&form.name)
-    .bind(&form.slug)
     .bind(user_id)
     .bind(TierType::Free)
     .bind(true)

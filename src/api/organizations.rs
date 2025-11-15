@@ -29,41 +29,15 @@ pub async fn create_organization_handler(
         .parse()
         .map_err(|_| ApiError::Unauthorized("Invalid user ID".to_string()))?;
 
-    // Generate slug from name if not provided
-    let slug = payload.slug.unwrap_or_else(|| {
-        payload
-            .name
-            .to_lowercase()
-            .replace(' ', "-")
-            .chars()
-            .filter(|c| c.is_alphanumeric() || *c == '-')
-            .collect()
-    });
-
-    // Validate slug is unique
-    let existing =
-        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM organizations WHERE slug = $1")
-            .bind(&slug)
-            .fetch_one(pool)
-            .await
-            .map_err(|e| ApiError::InternalError(format!("Database error: {}", e)))?;
-
-    if existing > 0 {
-        return Err(ApiError::BadRequest(
-            "Organization slug already exists".to_string(),
-        ));
-    }
-
     // Create organization
     let tier = payload.tier.unwrap_or(TierType::Free);
 
     let org = sqlx::query_as::<_, Organization>(
-        "INSERT INTO organizations (name, slug, owner_id, tier, is_active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        "INSERT INTO organizations (name, owner_id, tier, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *",
     )
     .bind(&payload.name)
-    .bind(&slug)
     .bind(user_id)
     .bind(tier)
     .bind(true)
@@ -89,7 +63,6 @@ pub async fn create_organization_handler(
     let response = OrganizationResponse {
         id: org.id,
         name: org.name,
-        slug: org.slug,
         tier: org.tier,
         role: OrganizationRole::Owner,
         is_active: org.is_active,
@@ -111,7 +84,6 @@ pub async fn list_organizations_handler(claims: SessionClaims) -> Result<Respons
     struct OrgWithRole {
         id: uuid::Uuid,
         name: String,
-        slug: String,
         tier: TierType,
         is_active: bool,
         created_at: chrono::NaiveDateTime,
@@ -119,7 +91,7 @@ pub async fn list_organizations_handler(claims: SessionClaims) -> Result<Respons
     }
 
     let orgs = sqlx::query_as::<_, OrgWithRole>(
-        "SELECT o.id, o.name, o.slug, o.tier, o.is_active, o.created_at, om.role
+        "SELECT o.id, o.name, o.tier, o.is_active, o.created_at, om.role
          FROM organizations o
          INNER JOIN organization_members om ON o.id = om.organization_id
          WHERE om.user_id = $1
@@ -135,7 +107,6 @@ pub async fn list_organizations_handler(claims: SessionClaims) -> Result<Respons
         .map(|org| OrganizationResponse {
             id: org.id,
             name: org.name,
-            slug: org.slug,
             tier: org.tier,
             role: org.role,
             is_active: org.is_active,
@@ -162,7 +133,6 @@ pub async fn get_organization_handler(
     struct OrgWithRole {
         id: uuid::Uuid,
         name: String,
-        slug: String,
         tier: TierType,
         is_active: bool,
         created_at: chrono::NaiveDateTime,
@@ -170,7 +140,7 @@ pub async fn get_organization_handler(
     }
 
     let org = sqlx::query_as::<_, OrgWithRole>(
-        "SELECT o.id, o.name, o.slug, o.tier, o.is_active, o.created_at, om.role
+        "SELECT o.id, o.name, o.tier, o.is_active, o.created_at, om.role
          FROM organizations o
          INNER JOIN organization_members om ON o.id = om.organization_id
          WHERE o.id = $1 AND om.user_id = $2",
@@ -185,7 +155,6 @@ pub async fn get_organization_handler(
     let response = OrganizationResponse {
         id: org.id,
         name: org.name,
-        slug: org.slug,
         tier: org.tier,
         role: org.role,
         is_active: org.is_active,
@@ -337,7 +306,6 @@ mod tests {
         let org_response: OrganizationResponse = serde_json::from_slice(&body).unwrap();
 
         assert_eq!(org_response.name, "Test Organization");
-        assert_eq!(org_response.slug, "test-org");
         assert_eq!(org_response.role, OrganizationRole::Owner);
 
         cleanup_db().await;

@@ -93,16 +93,14 @@ pub async fn register_handler(
     .map_err(|e| ApiError::InternalError(format!("Failed to create user: {}", e)))?;
 
     // Create personal organization for the user
-    let slug = format!("user-{}-org", user.id);
     let org_name = format!("{}' Organization", payload.email);
 
     let org_id = sqlx::query_scalar::<_, i64>(
-        "INSERT INTO organizations (name, slug, owner_id, tier, is_active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        "INSERT INTO organizations (name, owner_id, tier, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING id",
     )
     .bind(&org_name)
-    .bind(&slug)
     .bind(user.id)
     .bind(TierType::Free)
     .bind(true)

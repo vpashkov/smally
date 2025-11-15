@@ -390,16 +390,14 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Response,
     })?;
 
     // Create personal organization
-    let slug = format!("user-{}-org", user.id.simple());
     let org_name = format!("{}'s Organization", form.email);
 
     let org_id = sqlx::query_scalar::<_, uuid::Uuid>(
-        "INSERT INTO organizations (name, slug, owner_id, tier, is_active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        "INSERT INTO organizations (name, owner_id, tier, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id",
     )
     .bind(&org_name)
-    .bind(&slug)
     .bind(user.id)
     .bind(TierType::Free)
     .bind(true)

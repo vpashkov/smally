@@ -83,7 +83,6 @@ pub enum OrganizationRole {
 pub struct Organization {
     pub id: Uuid,
     pub name: String,
-    pub slug: String,
     pub owner_id: Uuid,
     pub tier: TierType,
     pub is_active: bool,
@@ -171,7 +170,6 @@ pub struct UserResponse {
 #[derive(Debug, Deserialize)]
 pub struct CreateOrganizationRequest {
     pub name: String,
-    pub slug: Option<String>,
     pub tier: Option<TierType>,
 }
 
@@ -179,7 +177,6 @@ pub struct CreateOrganizationRequest {
 pub struct OrganizationResponse {
     pub id: Uuid,
     pub name: String,
-    pub slug: String,
     pub tier: TierType,
     pub role: OrganizationRole, // Current user's role
     pub is_active: bool,

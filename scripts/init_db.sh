@@ -12,9 +12,9 @@ fi
 # Database connection details from environment or defaults
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5433}"
-DB_USER="${DB_USER:-fastembed}"
-DB_NAME="${DB_NAME:-fastembed}"
-DB_PASSWORD="${DB_PASSWORD:-fastembed_dev_password}"
+DB_USER="${DB_USER:-smally}"
+DB_NAME="${DB_NAME:-smally}"
+DB_PASSWORD="${DB_PASSWORD:-smally_dev_password}"
 
 echo "🗄️  Initializing database..."
 echo "   Host: $DB_HOST:$DB_PORT"

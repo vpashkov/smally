@@ -23,7 +23,6 @@ use super::organizations::OrganizationsQuery;
 struct OrganizationWithRole {
     id: Uuid,
     name: String,
-    slug: String,
     tier: TierType,
     is_active: bool,
     role: OrganizationRole,
@@ -71,7 +70,7 @@ pub async fn show(
     // Check user has access to this organization
     let org = sqlx::query_as::<_, OrganizationWithRole>(
         r#"
-        SELECT o.id, o.name, o.slug, o.tier, o.is_active, om.role
+        SELECT o.id, o.name, o.tier, o.is_active, om.role
         FROM organizations o
         INNER JOIN organization_members om ON o.id = om.organization_id
         WHERE o.id = $1 AND om.user_id = $2
@@ -159,9 +158,6 @@ pub async fn show(
                         div class="flex items-center justify-between" {
                             div {
                                 h1 class="text-3xl font-bold text-gray-900" { (org.name) }
-                                p class="mt-2 text-sm text-gray-500" {
-                                    "Slug: " span class="font-mono" { (org.slug) }
-                                }
                                 div class="mt-3 flex items-center space-x-2" {
                                     @let tier_class = match org.tier {
                                         TierType::Free => "bg-gray-100 text-gray-800",
