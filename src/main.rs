@@ -7,6 +7,7 @@ mod database;
 mod inference;
 mod models;
 mod monitoring;
+mod uuid_dashless;
 mod web;
 
 use axum::{
@@ -115,6 +116,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/dashboard", get(web::dashboard::show))
         .route("/organizations", get(web::organizations::list))
         .route("/organizations", post(web::organizations::create))
+        .route("/switch-org/:org_id", get(web::organizations::switch_org))
         .route("/organizations/:id", get(web::api_keys::show))
         .route("/organizations/:id/keys", post(web::api_keys::create))
         .route(

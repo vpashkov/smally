@@ -14,6 +14,7 @@ use crate::models::{
     CreateOrganizationRequest, InviteMemberRequest, Organization, OrganizationResponse,
     OrganizationRole, TierType,
 };
+use crate::uuid_dashless::DashlessUuid;
 
 use super::users::ApiError;
 
@@ -148,13 +149,14 @@ pub async fn list_organizations_handler(claims: SessionClaims) -> Result<Respons
 /// Get organization by ID
 pub async fn get_organization_handler(
     claims: SessionClaims,
-    Path(org_id): Path<uuid::Uuid>,
+    Path(org_id): Path<DashlessUuid>,
 ) -> Result<Response, ApiError> {
     let pool = database::get_db();
     let user_id: uuid::Uuid = claims
         .sub
         .parse()
         .map_err(|_| ApiError::Unauthorized("Invalid user ID".to_string()))?;
+    let org_id = org_id.into_inner();
 
     #[derive(sqlx::FromRow)]
     struct OrgWithRole {

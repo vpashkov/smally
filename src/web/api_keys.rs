@@ -11,6 +11,7 @@ use crate::auth::{sign_token_direct, TokenData};
 use crate::config;
 use crate::database;
 use crate::models::{APIKey, OrganizationRole, TierType};
+use crate::uuid_dashless::DashlessUuid;
 use chrono::Utc;
 use uuid::Uuid;
 
@@ -34,14 +35,38 @@ pub struct CreateAPIKeyForm {
     pub name: String,
 }
 
+/// Helper struct for org list
+#[derive(Debug, sqlx::FromRow)]
+struct OrgListItem {
+    id: Uuid,
+    name: String,
+}
+
 /// Show organization detail with API keys
 pub async fn show(
     session: SessionCookie,
-    Path(org_id): Path<Uuid>,
+    Path(org_id): Path<DashlessUuid>,
     Query(query): Query<OrganizationsQuery>,
 ) -> Result<Markup, Response> {
     let pool = database::get_db();
     let user_id = session.user_id();
+    let org_id = org_id.into_inner();
+
+    // Fetch all user's organizations for the dropdown
+    let all_orgs = sqlx::query_as::<_, OrgListItem>(
+        "SELECT o.id, o.name
+         FROM organizations o
+         INNER JOIN organization_members om ON o.id = om.organization_id
+         WHERE om.user_id = $1 AND o.is_active = true
+         ORDER BY o.created_at ASC",
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
+    })?;
 
     // Check user has access to this organization
     let org = sqlx::query_as::<_, OrganizationWithRole>(
@@ -93,10 +118,29 @@ pub async fn show(
             .into_response()
     })?;
 
+    // Build organization dropdown data
+    let current_org_id_simple = org_id.simple().to_string();
+    let current_org_name = &org.name;
+
+    let other_orgs: Vec<(String, String)> = all_orgs
+        .iter()
+        .filter(|o| o.id != org_id)
+        .map(|o| (o.id.simple().to_string(), o.name.clone()))
+        .collect();
+
+    let other_orgs_refs: Vec<(&str, &str)> = other_orgs
+        .iter()
+        .map(|(id, name)| (id.as_str(), name.as_str()))
+        .collect();
+
     Ok(layout::base(
         &format!("{} - Organization", org.name),
         html! {
-            (layout::navbar(session.email(), "organizations"))
+            (layout::navbar(
+                session.email(),
+                Some((current_org_id_simple.as_str(), current_org_name)),
+                &other_orgs_refs
+            ))
             (layout::container(html! {
                 // Breadcrumb
                 nav class="mb-6" {
@@ -245,7 +289,7 @@ fn api_keys_table(api_keys: &[APIKey], org_id: uuid::Uuid) -> Markup {
                             }
                             td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" {
                                 @if key.is_active {
-                                    form action=(format!("/organizations/{}/keys/{}/revoke", org_id, key.id)) method="POST" class="inline" {
+                                    form action=(format!("/organizations/{}/keys/{}/revoke", org_id.simple(), key.id.simple())) method="POST" class="inline" {
                                         button
                                             type="submit"
                                             class="text-red-600 hover:text-red-900"
@@ -295,7 +339,7 @@ fn create_api_key_modal(org_id: uuid::Uuid, auto_open: bool) -> Markup {
                                 "Create New API Key"
                             }
                             div class="mt-4" {
-                                form action=(format!("/organizations/{}/keys", org_id)) method="POST" {
+                                form action=(format!("/organizations/{}/keys", org_id.simple())) method="POST" {
                                     div class="space-y-4" {
                                         div {
                                             label for="name" class="block text-sm font-medium text-gray-700" {
@@ -339,15 +383,32 @@ fn create_api_key_modal(org_id: uuid::Uuid, auto_open: bool) -> Markup {
 /// Handle API key creation
 pub async fn create(
     session: SessionCookie,
-    Path(org_id): Path<Uuid>,
+    Path(org_id): Path<DashlessUuid>,
     Form(form): Form<CreateAPIKeyForm>,
 ) -> Result<Response, Response> {
     let pool = database::get_db();
     let user_id = session.user_id();
+    let org_id = org_id.into_inner();
 
-    // Check user has access to this organization
-    let _org = sqlx::query_scalar::<_, Uuid>(
-        "SELECT o.id FROM organizations o
+    // Fetch all user's organizations for the dropdown
+    let all_orgs = sqlx::query_as::<_, OrgListItem>(
+        "SELECT o.id, o.name
+         FROM organizations o
+         INNER JOIN organization_members om ON o.id = om.organization_id
+         WHERE om.user_id = $1 AND o.is_active = true
+         ORDER BY o.created_at ASC",
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
+    })?;
+
+    // Check user has access to this organization and get org name
+    let org_info = sqlx::query_as::<_, OrgListItem>(
+        "SELECT o.id, o.name FROM organizations o
          INNER JOIN organization_members om ON o.id = om.organization_id
          WHERE o.id = $1 AND om.user_id = $2",
     )
@@ -436,11 +497,30 @@ pub async fn create(
             .into_response()
     })?;
 
+    // Build organization dropdown data
+    let current_org_id_simple = org_id.simple().to_string();
+    let current_org_name = &org_info.name;
+
+    let other_orgs: Vec<(String, String)> = all_orgs
+        .iter()
+        .filter(|o| o.id != org_id)
+        .map(|o| (o.id.simple().to_string(), o.name.clone()))
+        .collect();
+
+    let other_orgs_refs: Vec<(&str, &str)> = other_orgs
+        .iter()
+        .map(|(id, name)| (id.as_str(), name.as_str()))
+        .collect();
+
     // Show the token to the user (only once!)
     Ok((
         StatusCode::OK,
         layout::base("API Key Created", html! {
-            (layout::navbar(session.email(), "organizations"))
+            (layout::navbar(
+                session.email(),
+                Some((current_org_id_simple.as_str(), current_org_name)),
+                &other_orgs_refs
+            ))
             (layout::container(html! {
                 div class="max-w-2xl mx-auto" {
                     (layout::alert("API key created successfully! Copy it now - you won't be able to see it again.", "success"))
@@ -459,7 +539,7 @@ pub async fn create(
 
                     div class="mt-6" {
                         a
-                            href=(format!("/organizations/{}", org_id))
+                            href=(format!("/organizations/{}", org_id.simple()))
                             class="text-primary hover:text-blue-500" {
                             "← Back to organization"
                         }
@@ -473,10 +553,12 @@ pub async fn create(
 /// Handle API key revocation
 pub async fn revoke(
     session: SessionCookie,
-    Path((org_id, key_id)): Path<(Uuid, Uuid)>,
+    Path((org_id, key_id)): Path<(DashlessUuid, DashlessUuid)>,
 ) -> Result<Response, Response> {
     let pool = database::get_db();
     let user_id = session.user_id();
+    let org_id = org_id.into_inner();
+    let key_id = key_id.into_inner();
 
     // Check user has access to this organization
     let _org = sqlx::query_scalar::<_, Uuid>(
@@ -510,7 +592,7 @@ pub async fn revoke(
         })?;
 
     // Redirect back to organization page
-    Ok(Redirect::to(&format!("/organizations/{}", org_id)).into_response())
+    Ok(Redirect::to(&format!("/organizations/{}", org_id.simple())).into_response())
 }
 
 /// Get tier limits for token creation

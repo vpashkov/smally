@@ -39,13 +39,13 @@ pub fn base(title: &str, content: Markup) -> Markup {
     }
 }
 
-/// Navigation bar for authenticated pages
-pub fn navbar(user_email: &str, current_page: &str) -> Markup {
+/// Navigation bar for authenticated pages with organization switcher
+pub fn navbar(user_email: &str, current_org: Option<(&str, &str)>, other_orgs: &[(&str, &str)]) -> Markup {
     html! {
         nav class="bg-white shadow-sm border-b border-gray-200" {
             div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" {
                 div class="flex justify-between h-16" {
-                    div class="flex" {
+                    div class="flex items-center" {
                         // Logo
                         div class="flex-shrink-0 flex items-center" {
                             a href="/dashboard" class="text-2xl font-bold text-primary" {
@@ -53,23 +53,69 @@ pub fn navbar(user_email: &str, current_page: &str) -> Markup {
                             }
                         }
 
-                        // Navigation links
-                        div class="hidden sm:ml-6 sm:flex sm:space-x-8" {
-                            a href="/dashboard"
-                              class=(if current_page == "dashboard" {
-                                  "border-primary text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                              } else {
-                                  "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                              }) {
-                                "Dashboard"
+                        // Organization switcher dropdown
+                        @if let Some((org_id, org_name)) = current_org {
+                            div class="ml-6 relative" {
+                                div class="relative inline-block text-left" {
+                                    button
+                                        type="button"
+                                        onclick="document.getElementById('org-dropdown').classList.toggle('hidden')"
+                                        class="inline-flex justify-center items-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                                        id="org-menu-button"
+                                        aria-expanded="false"
+                                        aria-haspopup="true" {
+                                        span { (org_name) }
+                                        svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {
+                                            path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" {}
+                                        }
+                                    }
+
+                                    div
+                                        class="hidden origin-top-right absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10"
+                                        id="org-dropdown"
+                                        role="menu"
+                                        aria-orientation="vertical"
+                                        aria-labelledby="org-menu-button"
+                                        tabindex="-1" {
+                                        div class="py-1" role="none" {
+                                            // Current organization (selected)
+                                            a
+                                                href=(format!("/switch-org/{}", org_id))
+                                                class="flex items-center px-4 py-2 text-sm text-gray-900 bg-gray-100 font-medium"
+                                                role="menuitem" {
+                                                svg class="mr-3 h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {
+                                                    path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" {}
+                                                }
+                                                (org_name)
+                                            }
+
+                                            @if !other_orgs.is_empty() {
+                                                div class="border-t border-gray-100" {}
+
+                                                @for (other_id, other_name) in other_orgs {
+                                                    a
+                                                        href=(format!("/switch-org/{}", other_id))
+                                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                        role="menuitem" {
+                                                        span class="mr-8" {} // Spacer for alignment
+                                                        (other_name)
+                                                    }
+                                                }
+                                            }
+
+                                            div class="border-t border-gray-100" {}
+                                            a href="/organizations" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" {
+                                                "Manage Organizations"
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                            a href="/organizations"
-                              class=(if current_page == "organizations" {
-                                  "border-primary text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                              } else {
-                                  "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-                              }) {
-                                "Organizations"
+                        } @else {
+                            div class="ml-6" {
+                                a href="/organizations" class="text-sm font-medium text-gray-700 hover:text-gray-900" {
+                                    "Select Organization"
+                                }
                             }
                         }
                     }

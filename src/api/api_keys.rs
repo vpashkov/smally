@@ -14,13 +14,14 @@ use crate::auth::{sign_token_direct, TokenData};
 use crate::config;
 use crate::database;
 use crate::models::{APIKey, APIKeyResponse, CreateAPIKeyRequest, OrganizationRole, TierType};
+use crate::uuid_dashless::DashlessUuid;
 
 use super::users::ApiError;
 
 /// Create a new API key (CWT token) for an organization
 pub async fn create_api_key_handler(
     claims: SessionClaims,
-    Path(org_id): Path<uuid::Uuid>,
+    Path(org_id): Path<DashlessUuid>,
     Json(payload): Json<CreateAPIKeyRequest>,
 ) -> Result<Response, ApiError> {
     let pool = database::get_db();
@@ -28,6 +29,7 @@ pub async fn create_api_key_handler(
         .sub
         .parse()
         .map_err(|_| ApiError::Unauthorized("Invalid user ID".to_string()))?;
+    let org_id = org_id.into_inner();
 
     // Check if user is a member of the organization
     #[derive(sqlx::FromRow)]

@@ -1,19 +1,103 @@
+use axum::response::{IntoResponse, Response};
+use axum::http::StatusCode;
 use maud::{html, Markup};
 
 use super::components::layout;
 use crate::auth::session::SessionCookie;
+use crate::database;
+
+/// Organization info for dropdown
+#[derive(Debug, sqlx::FromRow)]
+struct OrgInfo {
+    id: uuid::Uuid,
+    name: String,
+}
 
 /// Show dashboard with user session
-pub async fn show(session: SessionCookie) -> Markup {
+pub async fn show(session: SessionCookie) -> Result<Markup, Response> {
+    let pool = database::get_db();
+    let user_id = session.user_id();
     let user_email = session.email();
 
-    layout::base(
+    // Fetch all organizations user belongs to
+    let all_orgs = sqlx::query_as::<_, OrgInfo>(
+        "SELECT o.id, o.name
+         FROM organizations o
+         INNER JOIN organization_members om ON o.id = om.organization_id
+         WHERE om.user_id = $1 AND o.is_active = true
+         ORDER BY o.created_at ASC",
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
+    })?;
+
+    if all_orgs.is_empty() {
+        // No organizations - show message to create one
+        return Ok(layout::base(
+            "Dashboard",
+            html! {
+                (layout::navbar(user_email, None, &[]))
+                (layout::container(html! {
+                    div class="text-center py-12" {
+                        h1 class="text-2xl font-bold text-gray-900 mb-4" {
+                            "Welcome to Smally!"
+                        }
+                        p class="text-gray-600 mb-8" {
+                            "You don't have any organizations yet. Create one to get started."
+                        }
+                        a
+                            href="/organizations?new=true"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-blue-700" {
+                            "Create Organization"
+                        }
+                    }
+                }))
+            },
+        ));
+    }
+
+    // Determine current organization from session or default to first one
+    let current_org_id = session.current_org_id().unwrap_or(all_orgs[0].id);
+
+    // Find current org in the list
+    let current_org_index = all_orgs
+        .iter()
+        .position(|org| org.id == current_org_id)
+        .unwrap_or(0);
+
+    let current_org = &all_orgs[current_org_index];
+    let current_org_name = &current_org.name;
+    let current_org_id_simple = current_org.id.simple().to_string();
+
+    // Build other orgs list for dropdown
+    let other_orgs: Vec<(String, String)> = all_orgs
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i != current_org_index)
+        .map(|(_, org)| (org.id.simple().to_string(), org.name.clone()))
+        .collect();
+
+    // Convert to slices for navbar
+    let other_orgs_refs: Vec<(&str, &str)> = other_orgs
+        .iter()
+        .map(|(id, name)| (id.as_str(), name.as_str()))
+        .collect();
+
+    Ok(layout::base(
         "Dashboard",
         html! {
-            (layout::navbar(user_email, "dashboard"))
+            (layout::navbar(
+                user_email,
+                Some((current_org_id_simple.as_str(), current_org_name.as_str())),
+                &other_orgs_refs
+            ))
             (layout::container(html! {
                 h1 class="text-3xl font-bold text-gray-900 mb-8" {
-                    "Dashboard"
+                    "Dashboard - " (current_org_name)
                 }
 
                 // Stats cards
@@ -138,5 +222,5 @@ pub async fn show(session: SessionCookie) -> Markup {
                 }
             }))
         },
-    )
+    ))
 }

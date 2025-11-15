@@ -390,7 +390,7 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Response,
     })?;
 
     // Create personal organization
-    let slug = format!("user-{}-org", user.id);
+    let slug = format!("user-{}-org", user.id.simple());
     let org_name = format!("{}'s Organization", form.email);
 
     let org_id = sqlx::query_scalar::<_, uuid::Uuid>(

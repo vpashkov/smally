@@ -23,10 +23,22 @@ pub struct SessionClaims {
     pub iat: i64,
     /// User email
     pub email: String,
+    /// Current organization context (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_org_id: Option<String>,
 }
 
 /// Generate a JWT session token for a user
 pub fn create_session_token(user_id: uuid::Uuid, email: &str) -> Result<String> {
+    create_session_token_with_org(user_id, email, None)
+}
+
+/// Generate a JWT session token with organization context
+pub fn create_session_token_with_org(
+    user_id: uuid::Uuid,
+    email: &str,
+    org_id: Option<uuid::Uuid>,
+) -> Result<String> {
     let settings = config::get_settings();
 
     let now = Utc::now();
@@ -37,6 +49,7 @@ pub fn create_session_token(user_id: uuid::Uuid, email: &str) -> Result<String> 
         exp: exp.timestamp(),
         iat: now.timestamp(),
         email: email.to_string(),
+        current_org_id: org_id.map(|id| id.to_string()),
     };
 
     let token = encode(
@@ -100,6 +113,13 @@ impl SessionCookie {
 
     pub fn email(&self) -> &str {
         &self.claims.email
+    }
+
+    pub fn current_org_id(&self) -> Option<uuid::Uuid> {
+        self.claims
+            .current_org_id
+            .as_ref()
+            .and_then(|id| uuid::Uuid::parse_str(id).ok())
     }
 }
 

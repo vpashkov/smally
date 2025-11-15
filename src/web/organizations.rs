@@ -6,9 +6,12 @@ use axum::{
 use maud::{html, Markup};
 use serde::Deserialize;
 
-use crate::auth::session::SessionCookie;
+use crate::auth::session::{create_session_cookie, create_session_token_with_org, SessionCookie};
 use crate::database;
 use crate::models::{OrganizationRole, TierType};
+use crate::uuid_dashless::DashlessUuid;
+use axum::extract::Path;
+use axum::http::header;
 use chrono::Utc;
 
 use super::components::layout;
@@ -70,7 +73,7 @@ pub async fn list(
     Ok(layout::base(
         "Organizations",
         html! {
-            (layout::navbar(session.email(), "organizations"))
+            (layout::navbar(session.email(), None, &[]))
             (layout::container(html! {
                 div class="space-y-6" {
                     // Header
@@ -177,7 +180,7 @@ fn organization_card(org: &OrganizationWithRole) -> Markup {
                 }
                 div class="mt-6" {
                     a
-                        href=(format!("/organizations/{}", org.id))
+                        href=(format!("/organizations/{}", org.id.simple()))
                         class="text-primary hover:text-blue-500 text-sm font-medium" {
                         "View details →"
                     }
@@ -377,4 +380,70 @@ pub async fn create(
 
     // Redirect to organizations list
     Ok(Redirect::to("/organizations").into_response())
+}
+
+/// Switch organization context
+pub async fn switch_org(
+    session: SessionCookie,
+    Path(org_id): Path<DashlessUuid>,
+) -> Result<Response, Response> {
+    let pool = database::get_db();
+    let user_id = session.user_id();
+    let org_id = org_id.into_inner();
+
+    // Verify user is a member of this organization
+    let is_member = sqlx::query_scalar::<_, bool>(
+        "SELECT EXISTS(SELECT 1 FROM organization_members WHERE organization_id = $1 AND user_id = $2)",
+    )
+    .bind(org_id)
+    .bind(user_id)
+    .fetch_one(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
+    })?;
+
+    if !is_member {
+        return Err((
+            StatusCode::FORBIDDEN,
+            layout::base(
+                "Access Denied",
+                html! {
+                    div class="min-h-screen flex items-center justify-center bg-gray-50" {
+                        div class="max-w-md w-full" {
+                            (layout::alert("You don't have access to this organization", "error"))
+                            a href="/organizations" class="text-primary hover:text-blue-500" {
+                                "← Back to organizations"
+                            }
+                        }
+                    }
+                },
+            ),
+        )
+            .into_response());
+    }
+
+    // Create new session token with organization context
+    let token = create_session_token_with_org(user_id, session.email(), Some(org_id)).map_err(
+        |e| {
+            tracing::error!("Failed to create session token: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to update session",
+            )
+                .into_response()
+        },
+    )?;
+
+    // Create session cookie
+    let cookie = create_session_cookie(&token);
+
+    // Redirect to dashboard with new session
+    let mut response = Redirect::to("/dashboard").into_response();
+    response
+        .headers_mut()
+        .insert(header::SET_COOKIE, cookie.to_string().parse().unwrap());
+
+    Ok(response)
 }
