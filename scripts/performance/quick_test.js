@@ -14,7 +14,7 @@ const cacheTotal = new Counter('cache_total');
 const NUM_REQUESTS = parseInt(__ENV.NUM_REQUESTS || '100');
 const NUM_USERS = parseInt(__ENV.NUM_USERS || '1');
 const API_URL = __ENV.API_URL || 'http://localhost:8000/v1/embed';
-const API_KEY = __ENV.API_KEY || 'fe_test_key_here';
+const API_KEY = __ENV.API_KEY || 'sk_test_key_here';
 const TEXT = __ENV.TEXT || 'how to reset password';
 
 export const options = {
@@ -97,7 +97,7 @@ Configuration:
 Results:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Total Time:     ${totalTime.toFixed(2)}s
-Successful:     ${successReqs}/${totalReqs} (${totalReqs > 0 ? (successReqs/totalReqs*100).toFixed(1) : '0'}%)
+Successful:     ${successReqs}/${totalReqs} (${totalReqs > 0 ? (successReqs / totalReqs * 100).toFixed(1) : '0'}%)
 RPS:            ${rps} req/s
 
 Latency (ms):

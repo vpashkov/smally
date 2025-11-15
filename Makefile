@@ -229,7 +229,7 @@ quick-test:
 	fi
 	@NUM_REQUESTS=$${NUM_REQUESTS:-100} \
 		NUM_USERS=$${NUM_USERS:-1} \
-		API_KEY=$${API_KEY:-fe_test_key_here} \
+		API_KEY=$${API_KEY:-sk_test_key_here} \
 		TEXT="$${TEXT:-how to reset password}" \
 		API_URL=$${API_URL:-http://localhost:8000/v1/embed} \
 		k6 run --quiet --summary-trend-stats="min,avg,med,max,p(90),p(95),p(99)" scripts/performance/quick_test.js

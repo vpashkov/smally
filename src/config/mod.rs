@@ -84,7 +84,7 @@ impl Settings {
                 "SECRET_KEY",
                 "change-this-to-a-secure-random-key-in-production",
             ),
-            api_key_prefix: get_env("API_KEY_PREFIX", "fe_"),
+            api_key_prefix: get_env("API_KEY_PREFIX", "sk_"),
             token_public_key: get_env("TOKEN_PUBLIC_KEY", ""),
             token_private_key: get_env("TOKEN_PRIVATE_KEY", ""),
             jwt_secret: get_env(

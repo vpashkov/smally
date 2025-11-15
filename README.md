@@ -137,7 +137,7 @@ struct EmbedResponse {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let api_key = "fe_your_api_key_here";
+    let api_key = "sk_your_api_key_here";
     let api_url = "http://localhost:8000/v1/embed";
 
     let req_body = EmbedRequest {

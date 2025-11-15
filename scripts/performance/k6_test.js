@@ -13,7 +13,7 @@ const embeddingLatency = new Trend('embedding_latency', true);
 
 // Configuration
 const API_URL = __ENV.API_URL || 'http://localhost:8000/v1/embed';
-const API_KEY = __ENV.API_KEY || 'fe_test_key_here';
+const API_KEY = __ENV.API_KEY || 'sk_test_key_here';
 
 // Test scenarios
 export const options = {
