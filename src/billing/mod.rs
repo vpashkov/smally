@@ -14,19 +14,31 @@ use crate::auth::TokenClaims;
 use crate::config;
 use crate::models::TierType;
 
-// Usage record for batching
+// Response update for batching
 #[derive(Clone, Debug)]
-struct UsageRecord {
+struct ResponseUpdate {
+    request_id: uuid::Uuid,
+    tokens: i32,
+    response_metadata: serde_json::Value,
+    timestamp: NaiveDateTime,
+}
+
+// Usage event for batching
+#[derive(Clone, Debug)]
+struct UsageEvent {
     organization_id: uuid::Uuid,
     api_key_id: uuid::Uuid,
-    embeddings_count: i32,
+    product: String,
+    event_type: String,
     tokens: i32,
+    requests: i32,
     timestamp: NaiveDateTime,
 }
 
 // Buffer for batching usage updates
 pub struct UsageBuffer {
-    buffer: Arc<Mutex<Vec<UsageRecord>>>,
+    response_updates_buffer: Arc<Mutex<Vec<ResponseUpdate>>>,
+    usage_events_buffer: Arc<Mutex<Vec<UsageEvent>>>,
     pool: &'static PgPool,
 }
 
@@ -40,58 +52,157 @@ static REDIS_CONNECTION: once_cell::sync::OnceCell<ConnectionManager> =
 impl UsageBuffer {
     pub fn new(pool: &'static PgPool) -> Self {
         Self {
-            buffer: Arc::new(Mutex::new(Vec::new())),
+            response_updates_buffer: Arc::new(Mutex::new(Vec::new())),
+            usage_events_buffer: Arc::new(Mutex::new(Vec::new())),
             pool,
         }
     }
 
-    // Record a usage event (non-blocking)
-    pub fn record(&self, organization_id: uuid::Uuid, api_key_id: uuid::Uuid, tokens: i32) {
+    /// Record incoming API request immediately (non-blocking insert to api_request_log)
+    /// This creates an audit trail of ALL requests, even if they fail later
+    pub fn record_request(
+        &self,
+        request_id: uuid::Uuid,
+        organization_id: uuid::Uuid,
+        api_key_id: uuid::Uuid,
+        product: String,
+        endpoint: String,
+        input_text: String,
+        input_metadata: Option<serde_json::Value>,
+    ) {
+        let pool = self.pool;
+
+        // Spawn non-blocking insert - don't wait for database
+        tokio::spawn(async move {
+            let result = sqlx::query(
+                "INSERT INTO api_request_log
+                 (request_id, organization_id, api_key_id, product, endpoint, input_text, input_metadata, request_timestamp, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), 'pending')",
+            )
+            .bind(request_id)
+            .bind(organization_id)
+            .bind(api_key_id)
+            .bind(product)
+            .bind(endpoint)
+            .bind(input_text)
+            .bind(input_metadata)
+            .execute(pool)
+            .await;
+
+            if let Err(e) = result {
+                tracing::error!("Failed to record request {}: {}", request_id, e);
+            } else {
+                tracing::debug!("Recorded request {} to api_request_log", request_id);
+            }
+        });
+    }
+
+    /// Record API response and usage (updates api_request_log, buffers usage_events)
+    /// This is called when the response is ready with calculated tokens and metadata
+    pub fn record_response(
+        &self,
+        request_id: uuid::Uuid,
+        organization_id: uuid::Uuid,
+        api_key_id: uuid::Uuid,
+        product: &str,
+        tokens: i32,
+        response_metadata: serde_json::Value,
+    ) {
         let now = chrono::Local::now().naive_local();
-        let record = UsageRecord {
-            organization_id,
-            api_key_id,
-            embeddings_count: 1,
+
+        // Buffer the response update for api_request_log
+        let response_update = ResponseUpdate {
+            request_id,
             tokens,
+            response_metadata,
             timestamp: now,
         };
+        self.response_updates_buffer.lock().push(response_update);
 
-        let mut buffer = self.buffer.lock();
-        buffer.push(record);
+        // Buffer the usage event for billing
+        let usage = UsageEvent {
+            organization_id,
+            api_key_id,
+            product: product.to_string(),
+            event_type: "inference".to_string(),
+            tokens,
+            requests: 1,
+            timestamp: now,
+        };
+        self.usage_events_buffer.lock().push(usage);
     }
 
     // Flush buffered records to database (batch insert)
-    pub async fn flush(&self) -> Result<usize> {
-        // Swap buffer to minimize lock time
-        let records = {
-            let mut buffer = self.buffer.lock();
+    pub async fn flush(&self) -> Result<(usize, usize)> {
+        // 1. Flush response updates to api_request_log
+        let response_updates = {
+            let mut buffer = self.response_updates_buffer.lock();
             std::mem::take(&mut *buffer)
         };
 
-        if records.is_empty() {
-            return Ok(0);
-        }
+        let response_count = if !response_updates.is_empty() {
+            let count = response_updates.len();
+            info!("Flushing {} response updates to api_request_log", count);
 
-        let count = records.len();
-        info!("Flushing {} usage records to database", count);
+            // Batch update using individual queries (PostgreSQL doesn't support batch UPDATE well)
+            for update in response_updates {
+                sqlx::query(
+                    "UPDATE api_request_log
+                     SET tokens = $1,
+                         response_metadata = $2,
+                         response_timestamp = $3,
+                         status = 'success',
+                         updated_at = NOW()
+                     WHERE request_id = $4",
+                )
+                .bind(update.tokens)
+                .bind(update.response_metadata)
+                .bind(update.timestamp)
+                .bind(update.request_id)
+                .execute(self.pool)
+                .await?;
+            }
 
-        // Batch insert using QueryBuilder
-        let mut query_builder = sqlx::QueryBuilder::new(
-            "INSERT INTO usage (organization_id, api_key_id, embeddings_count, tokens, timestamp) ",
-        );
+            info!("Successfully flushed {} response updates", count);
+            count
+        } else {
+            0
+        };
 
-        query_builder.push_values(records, |mut b, record| {
-            b.push_bind(record.organization_id)
-                .push_bind(record.api_key_id)
-                .push_bind(record.embeddings_count)
-                .push_bind(record.tokens)
-                .push_bind(record.timestamp);
-        });
+        // 2. Flush usage events
+        let usage_events = {
+            let mut buffer = self.usage_events_buffer.lock();
+            std::mem::take(&mut *buffer)
+        };
 
-        query_builder.build().execute(self.pool).await?;
+        let usage_count = if !usage_events.is_empty() {
+            let count = usage_events.len();
+            info!("Flushing {} usage events", count);
 
-        info!("Successfully flushed {} usage records", count);
-        Ok(count)
+            // Batch insert using QueryBuilder
+            let mut query_builder = sqlx::QueryBuilder::new(
+                "INSERT INTO usage_events (organization_id, api_key_id, product, event_type, tokens, requests, timestamp) ",
+            );
+
+            query_builder.push_values(usage_events, |mut b, event| {
+                b.push_bind(event.organization_id)
+                    .push_bind(event.api_key_id)
+                    .push_bind(event.product)
+                    .push_bind(event.event_type)
+                    .push_bind(event.tokens)
+                    .push_bind(event.requests)
+                    .push_bind(event.timestamp);
+            });
+
+            query_builder.build().execute(self.pool).await?;
+
+            info!("Successfully flushed {} usage events", count);
+            count
+        } else {
+            0
+        };
+
+        Ok((response_count, usage_count))
     }
 
     // Start background flush task (every 5 seconds)
@@ -219,30 +330,13 @@ async fn check_rate_limit_redis_from_claims(
     Ok((is_allowed, rate_limit_info))
 }
 
-/// Increment usage using token claims (no DB needed for lookup)
-pub async fn increment_usage_from_claims(claims: &TokenClaims, tokens: usize) -> Result<()> {
-    let org_id = claims.org_id();
-    let api_key_id = claims.key_id();
-    let tier = claims.tier()?;
-
-    // Only increment Redis counter for free tier (they have quotas)
-    match tier {
-        TierType::Free => {
-            tokio::spawn(async move {
-                if let Err(e) = increment_redis_counter_simple(org_id).await {
-                    info!("Failed to increment Redis counter for free tier: {}", e);
-                }
-            });
+/// Increment Redis counter for free tier rate limiting (async, non-blocking)
+pub fn increment_free_tier_counter(org_id: uuid::Uuid) {
+    tokio::spawn(async move {
+        if let Err(e) = increment_redis_counter_simple(org_id).await {
+            info!("Failed to increment Redis counter for free tier: {}", e);
         }
-        TierType::Pro | TierType::Scale => {
-            info!("Skipping Redis counter for paid tier: {:?}", tier);
-        }
-    }
-
-    // Buffer the usage record (for billing/analytics)
-    get_usage_buffer().record(org_id, api_key_id, tokens as i32);
-
-    Ok(())
+    });
 }
 
 /// Increment Redis counter (simplified - no API key ID)

@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Copy, Default, sqlx::Type)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "VARCHAR", rename_all = "lowercase")]
 pub enum TierType {
     #[default]

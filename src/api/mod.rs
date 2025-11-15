@@ -103,6 +103,9 @@ pub async fn create_embedding_handler(
 ) -> Result<Response, ApiError> {
     let start_time = Instant::now();
 
+    // Generate request ID for tracking
+    let request_id = uuid::Uuid::now_v7();
+
     // Get authorization header
     let auth_header = headers.get("authorization").ok_or(ApiError::Unauthorized(
         "Authorization header is required".to_string(),
@@ -152,6 +155,20 @@ pub async fn create_embedding_handler(
             "Text exceeds 2000 characters".to_string(),
         ));
     }
+
+    // Record request immediately to api_request_log (audit trail)
+    let buffer = billing::get_usage_buffer();
+    buffer.record_request(
+        request_id,
+        claims.org_id(),
+        claims.key_id(),
+        "embeddings".to_string(),
+        "/v1/embed".to_string(),
+        req.text.clone(),
+        Some(serde_json::json!({
+            "normalize": req.normalize
+        })),
+    );
 
     // Get model and cache
     let model = inference::get_model();
@@ -242,11 +259,31 @@ pub async fn create_embedding_handler(
         (embedding, metadata, false)
     };
 
-    // Increment usage using token claims
-    let _ = billing::increment_usage_from_claims(&claims, token_count).await;
-
     // Calculate total latency
     let total_latency_ms = start_time.elapsed().as_millis() as f64;
+
+    // Record response and usage (update api_request_log, insert usage_events)
+    buffer.record_response(
+        request_id,
+        claims.org_id(),
+        claims.key_id(),
+        "embeddings",
+        token_count as i32,
+        serde_json::json!({
+            "model": metadata.model,
+            "cached": cached,
+            "latency_ms": total_latency_ms,
+            "normalize": req.normalize
+        }),
+    );
+
+    // Increment Redis counter for free tier rate limiting
+    let tier = claims
+        .tier()
+        .map_err(|_| ApiError::InternalError("Failed to decode tier".to_string()))?;
+    if tier == crate::models::TierType::Free {
+        billing::increment_free_tier_counter(claims.org_id());
+    }
 
     // Record metrics
     monitoring::REQUEST_COUNT
