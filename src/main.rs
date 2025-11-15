@@ -35,7 +35,8 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Initialize tracing with better formatting for dev mode
-    let is_dev = std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development";
+    let is_dev =
+        std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string()) == "development";
 
     if is_dev {
         // Dev mode: verbose logging with colors and full error details
@@ -116,7 +117,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/organizations", post(web::organizations::create))
         .route("/organizations/:id", get(web::api_keys::show))
         .route("/organizations/:id/keys", post(web::api_keys::create))
-        .route("/organizations/:id/keys/:key_id/revoke", post(web::api_keys::revoke))
+        .route(
+            "/organizations/:id/keys/:key_id/revoke",
+            post(web::api_keys::revoke),
+        )
         // API routes (will be moved to api. subdomain later)
         // Embedding API (CWT token authentication)
         .route("/v1/embed", post(api::create_embedding_handler))

@@ -16,15 +16,18 @@ pub async fn home() -> Redirect {
 
 /// 404 Not Found page
 pub async fn not_found() -> Markup {
-    components::layout::base("404 Not Found", html! {
-        div class="min-h-screen flex items-center justify-center bg-gray-50" {
-            div class="text-center" {
-                h1 class="text-6xl font-bold text-gray-900 mb-4" { "404" }
-                p class="text-xl text-gray-600 mb-8" { "Page not found" }
-                a href="/" class="text-blue-600 hover:text-blue-800 underline" {
-                    "Go back home"
+    components::layout::base(
+        "404 Not Found",
+        html! {
+            div class="min-h-screen flex items-center justify-center bg-gray-50" {
+                div class="text-center" {
+                    h1 class="text-6xl font-bold text-gray-900 mb-4" { "404" }
+                    p class="text-xl text-gray-600 mb-8" { "Page not found" }
+                    a href="/" class="text-blue-600 hover:text-blue-800 underline" {
+                        "Go back home"
+                    }
                 }
             }
-        }
-    })
+        },
+    )
 }

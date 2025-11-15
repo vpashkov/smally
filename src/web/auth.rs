@@ -204,33 +204,37 @@ pub async fn login_submit(Form(form): Form<LoginForm>) -> Result<Response, Respo
     let pool = database::get_db();
 
     // Find user by email
-    let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
-        .bind(&form.email)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
-        })?
-        .ok_or_else(|| {
-            (
-                StatusCode::UNAUTHORIZED,
-                layout::base(
-                    "Login Failed",
-                    html! {
-                        div class="min-h-screen flex items-center justify-center bg-gray-50" {
-                            div class="max-w-md w-full" {
-                                (layout::alert("Invalid email or password", "error"))
-                                a href="/login" class="text-primary hover:text-blue-500" {
-                                    "← Back to login"
-                                }
+    let user = sqlx::query_as!(
+        User,
+        "SELECT id, email, name, password_hash, is_active, created_at, updated_at
+         FROM users WHERE email = $1",
+        &form.email
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
+    })?
+    .ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            layout::base(
+                "Login Failed",
+                html! {
+                    div class="min-h-screen flex items-center justify-center bg-gray-50" {
+                        div class="max-w-md w-full" {
+                            (layout::alert("Invalid email or password", "error"))
+                            a href="/login" class="text-primary hover:text-blue-500" {
+                                "← Back to login"
                             }
                         }
-                    },
-                ),
-            )
-                .into_response()
-        })?;
+                    }
+                },
+            ),
+        )
+            .into_response()
+    })?;
 
     // Check if user is active
     if !user.is_active {
@@ -325,14 +329,18 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Response,
     let pool = database::get_db();
 
     // Check if user already exists
-    let existing = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
-        .bind(&form.email)
-        .fetch_optional(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
-        })?;
+    let existing = sqlx::query_as!(
+        User,
+        "SELECT id, email, name, password_hash, is_active, created_at, updated_at
+         FROM users WHERE email = $1",
+        &form.email
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Database error: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
+    })?;
 
     if existing.is_some() {
         return Err((
@@ -361,17 +369,19 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Response,
     })?;
 
     // Create user
-    let user = sqlx::query_as::<_, User>(
+    let now = Utc::now().naive_utc();
+    let user = sqlx::query_as!(
+        User,
         "INSERT INTO users (email, name, password_hash, is_active, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING *",
+         RETURNING id, email, name, password_hash, is_active, created_at, updated_at",
+        &form.email,
+        &form.name,
+        &password_hash,
+        true,
+        now,
+        now
     )
-    .bind(&form.email)
-    .bind(&form.name)
-    .bind(&password_hash)
-    .bind(true)
-    .bind(Utc::now().naive_utc())
-    .bind(Utc::now().naive_utc())
     .fetch_one(pool)
     .await
     .map_err(|e| {

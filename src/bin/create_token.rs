@@ -18,7 +18,9 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
         eprintln!("Usage: cargo run --bin create_token <org_id> <tier> [key_id]");
-        eprintln!("Example: cargo run --bin create_token 018d1234-5678-7abc-9def-0123456789ab free");
+        eprintln!(
+            "Example: cargo run --bin create_token 018d1234-5678-7abc-9def-0123456789ab free"
+        );
         eprintln!(
             "         cargo run --bin create_token 018d1234-5678-7abc-9def-0123456789ab free 018d1234-5678-7abc-9def-0123456789ab"
         );

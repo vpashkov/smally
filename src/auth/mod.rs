@@ -511,7 +511,11 @@ pub fn sign_admin_token(
     // Sign the token
     let sign1 = CoseSign1Builder::new()
         .protected(protected)
-        .payload(claims.to_vec().map_err(|e| anyhow!("Failed to encode claims: {}", e))?)
+        .payload(
+            claims
+                .to_vec()
+                .map_err(|e| anyhow!("Failed to encode claims: {}", e))?,
+        )
         .try_create_signature(&[], |bytes| {
             use ed25519_dalek::Signer;
             Ok::<Vec<u8>, coset::CoseError>(signing_key.sign(bytes).to_vec())
@@ -520,14 +524,19 @@ pub fn sign_admin_token(
         .build();
 
     // Encode to bytes
-    let token_bytes = sign1.to_vec().map_err(|e| anyhow!("Failed to encode token: {}", e))?;
+    let token_bytes = sign1
+        .to_vec()
+        .map_err(|e| anyhow!("Failed to encode token: {}", e))?;
 
     // Base64 encode
     Ok(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&token_bytes))
 }
 
 /// Validate an admin token
-pub fn validate_admin_token(token: &str, verifying_key: &ed25519_dalek::VerifyingKey) -> Result<AdminTokenData> {
+pub fn validate_admin_token(
+    token: &str,
+    verifying_key: &ed25519_dalek::VerifyingKey,
+) -> Result<AdminTokenData> {
     use base64::Engine as _;
     use coset::CoseSign1;
     use ed25519_dalek::Verifier;
@@ -580,17 +589,15 @@ pub fn validate_admin_token(token: &str, verifying_key: &ed25519_dalek::Verifyin
     let scope = claims
         .rest
         .iter()
-        .find_map(|(name, value)| {
-            match name {
-                coset::cwt::ClaimName::Text(key) if key == "s" => {
-                    if let ciborium::value::Value::Text(s) = value {
-                        Some(s.clone())
-                    } else {
-                        None
-                    }
+        .find_map(|(name, value)| match name {
+            coset::cwt::ClaimName::Text(key) if key == "s" => {
+                if let ciborium::value::Value::Text(s) = value {
+                    Some(s.clone())
+                } else {
+                    None
                 }
-                _ => None,
             }
+            _ => None,
         })
         .ok_or_else(|| anyhow!("Missing scope claim"))?;
 

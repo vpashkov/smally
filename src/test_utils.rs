@@ -216,8 +216,8 @@ pub mod helpers {
         );
 
         let expiration = (Utc::now() + chrono::Duration::days(365)).timestamp();
-        let token = sign_admin_token("ui", expiration, &signing_key)
-            .expect("Failed to sign admin token");
+        let token =
+            sign_admin_token("ui", expiration, &signing_key).expect("Failed to sign admin token");
 
         format!("admin_{}", token)
     }

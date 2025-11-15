@@ -60,70 +60,77 @@ pub async fn list(
     .await
     .map_err(|e| {
         tracing::error!("Failed to fetch organizations: {}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch organizations").into_response()
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to fetch organizations",
+        )
+            .into_response()
     })?;
 
-    Ok(layout::base("Organizations", html! {
-        (layout::navbar(session.email(), "organizations"))
-        (layout::container(html! {
-            div class="space-y-6" {
-                // Header
-                div class="md:flex md:items-center md:justify-between" {
-                    div class="flex-1 min-w-0" {
-                        h1 class="text-3xl font-bold text-gray-900" {
-                            "Organizations"
-                        }
-                        p class="mt-2 text-sm text-gray-500" {
-                            "Manage your organizations and teams"
-                        }
-                    }
-                    div class="mt-4 flex md:mt-0 md:ml-4" {
-                        button
-                            onclick="document.getElementById('create-org-modal').classList.remove('hidden')"
-                            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
-                            svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" {
-                                path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" {}
+    Ok(layout::base(
+        "Organizations",
+        html! {
+            (layout::navbar(session.email(), "organizations"))
+            (layout::container(html! {
+                div class="space-y-6" {
+                    // Header
+                    div class="md:flex md:items-center md:justify-between" {
+                        div class="flex-1 min-w-0" {
+                            h1 class="text-3xl font-bold text-gray-900" {
+                                "Organizations"
                             }
-                            "New Organization"
+                            p class="mt-2 text-sm text-gray-500" {
+                                "Manage your organizations and teams"
+                            }
+                        }
+                        div class="mt-4 flex md:mt-0 md:ml-4" {
+                            button
+                                onclick="document.getElementById('create-org-modal').classList.remove('hidden')"
+                                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
+                                svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" {
+                                    path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" {}
+                                }
+                                "New Organization"
+                            }
                         }
                     }
-                }
 
-                // Organizations grid
-                @if organizations.is_empty() {
-                    (layout::card("No Organizations", html! {
-                        div class="text-center py-12" {
-                            svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" {
-                                path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" {}
-                            }
-                            h3 class="mt-2 text-sm font-medium text-gray-900" {
-                                "No organizations"
-                            }
-                            p class="mt-1 text-sm text-gray-500" {
-                                "Get started by creating a new organization."
-                            }
-                            div class="mt-6" {
-                                button
-                                    onclick="document.getElementById('create-org-modal').classList.remove('hidden')"
-                                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
-                                    "Create Organization"
+                    // Organizations grid
+                    @if organizations.is_empty() {
+                        (layout::card("No Organizations", html! {
+                            div class="text-center py-12" {
+                                svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" {
+                                    path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" {}
+                                }
+                                h3 class="mt-2 text-sm font-medium text-gray-900" {
+                                    "No organizations"
+                                }
+                                p class="mt-1 text-sm text-gray-500" {
+                                    "Get started by creating a new organization."
+                                }
+                                div class="mt-6" {
+                                    button
+                                        onclick="document.getElementById('create-org-modal').classList.remove('hidden')"
+                                        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
+                                        "Create Organization"
+                                    }
                                 }
                             }
-                        }
-                    }))
-                } @else {
-                    div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" {
-                        @for org in &organizations {
-                            (organization_card(org))
+                        }))
+                    } @else {
+                        div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3" {
+                            @for org in &organizations {
+                                (organization_card(org))
+                            }
                         }
                     }
                 }
-            }
 
-            // Create organization modal
-            (create_organization_modal(query.new.unwrap_or(false)))
-        }))
-    }))
+                // Create organization modal
+                (create_organization_modal(query.new.unwrap_or(false)))
+            }))
+        },
+    ))
 }
 
 /// Render an organization card
@@ -275,7 +282,11 @@ pub async fn create(
     let user_id = session.user_id();
 
     // Validate slug format
-    if !form.slug.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+    if !form
+        .slug
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    {
         return Err((
             StatusCode::BAD_REQUEST,
             layout::base("Invalid Slug", html! {
@@ -293,14 +304,15 @@ pub async fn create(
     }
 
     // Check if slug is already taken
-    let existing = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM organizations WHERE slug = $1")
-        .bind(&form.slug)
-        .fetch_one(pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Database error: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
-        })?;
+    let existing =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM organizations WHERE slug = $1")
+            .bind(&form.slug)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error: {}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
+            })?;
 
     if existing > 0 {
         return Err((
@@ -336,7 +348,11 @@ pub async fn create(
     .await
     .map_err(|e| {
         tracing::error!("Failed to create organization: {}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create organization").into_response()
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to create organization",
+        )
+            .into_response()
     })?;
 
     // Add user as owner
@@ -352,7 +368,11 @@ pub async fn create(
     .await
     .map_err(|e| {
         tracing::error!("Failed to add organization member: {}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to add organization member").into_response()
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to add organization member",
+        )
+            .into_response()
     })?;
 
     // Redirect to organizations list

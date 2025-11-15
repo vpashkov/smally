@@ -63,7 +63,6 @@ pub struct User {
     pub name: Option<String>,
     #[serde(skip_serializing)]
     pub password_hash: Option<String>,
-    pub tier: TierType, // Kept for backward compatibility
     pub is_active: bool,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
@@ -133,10 +132,18 @@ pub struct CreateUserRequest {
     #[validate(length(max = 255, message = "Email too long"))]
     pub email: String,
 
-    #[validate(length(min = 8, max = 128, message = "Password must be between 8 and 128 characters"))]
+    #[validate(length(
+        min = 8,
+        max = 128,
+        message = "Password must be between 8 and 128 characters"
+    ))]
     pub password: String,
 
-    #[validate(length(min = 1, max = 255, message = "Name must be between 1 and 255 characters"))]
+    #[validate(length(
+        min = 1,
+        max = 255,
+        message = "Name must be between 1 and 255 characters"
+    ))]
     pub name: Option<String>,
 }
 

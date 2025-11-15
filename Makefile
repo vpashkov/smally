@@ -1,4 +1,4 @@
-.PHONY: help deps build run dev dev-ui dev-check services-up services-down model init-db clean test docker-build docker-up docker-down deploy quick-deploy health-check backup create-token generate-keypair logs-prod check bench bench-cache bench-tokenizer bench-inference perf-test load-test quick-test
+.PHONY: help deps build run dev dev-ui dev-check services-up services-down model init-db clean test docker-build docker-up docker-down deploy quick-deploy health-check backup create-token generate-keypair logs-prod check bench bench-cache bench-tokenizer bench-inference perf-test load-test quick-test sqlx-prepare sqlx-check pre-commit
 
 help:
 	@echo "Smally API (Rust) - Make Commands"
@@ -24,6 +24,11 @@ help:
 	@echo "  make fmt           - Format code with rustfmt"
 	@echo "  make clippy        - Run clippy linter"
 	@echo "  make test          - Run tests"
+	@echo "  make pre-commit    - Run all checks before committing"
+	@echo ""
+	@echo "Database & Queries:"
+	@echo "  make sqlx-prepare  - Update SQLx offline metadata (run after changing queries)"
+	@echo "  make sqlx-check    - Check if SQLx queries are up to date"
 	@echo ""
 	@echo "Performance:"
 	@echo "  make bench         - Run all criterion benchmarks"
@@ -150,6 +155,33 @@ clippy:
 	cargo clippy -- -D warnings
 
 test:
+	cargo test
+
+# SQLx offline mode - update query metadata
+sqlx-prepare:
+	@echo "Updating SQLx offline metadata..."
+	@if ! command -v sqlx &> /dev/null; then \
+		echo "Error: sqlx-cli is not installed"; \
+		echo "Install with: cargo install sqlx-cli --no-default-features --features postgres"; \
+		exit 1; \
+	fi
+	cargo sqlx prepare
+
+# Check if SQLx queries are up to date
+sqlx-check:
+	@echo "Checking if SQLx queries are up to date..."
+	@if ! command -v sqlx &> /dev/null; then \
+		echo "Error: sqlx-cli is not installed"; \
+		echo "Install with: cargo install sqlx-cli --no-default-features --features postgres"; \
+		exit 1; \
+	fi
+	cargo sqlx prepare --check
+
+# Pre-commit checks
+pre-commit: sqlx-check
+	@echo "Running pre-commit checks..."
+	cargo fmt --check
+	cargo clippy -- -D warnings
 	cargo test
 
 bench:

@@ -86,109 +86,116 @@ pub async fn show(
     .await
     .map_err(|e| {
         tracing::error!("Failed to fetch API keys: {}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch API keys").into_response()
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to fetch API keys",
+        )
+            .into_response()
     })?;
 
-    Ok(layout::base(&format!("{} - Organization", org.name), html! {
-        (layout::navbar(session.email(), "organizations"))
-        (layout::container(html! {
-            // Breadcrumb
-            nav class="mb-6" {
-                ol class="flex items-center space-x-2 text-sm" {
-                    li {
-                        a href="/organizations" class="text-gray-500 hover:text-gray-700" { "Organizations" }
-                    }
-                    li class="text-gray-400" { "/" }
-                    li class="text-gray-900 font-medium" { (org.name) }
-                }
-            }
-
-            div class="space-y-6" {
-                // Organization header
-                div class="bg-white shadow rounded-lg p-6" {
-                    div class="flex items-center justify-between" {
-                        div {
-                            h1 class="text-3xl font-bold text-gray-900" { (org.name) }
-                            p class="mt-2 text-sm text-gray-500" {
-                                "Slug: " span class="font-mono" { (org.slug) }
-                            }
-                            div class="mt-3 flex items-center space-x-2" {
-                                @let tier_class = match org.tier {
-                                    TierType::Free => "bg-gray-100 text-gray-800",
-                                    TierType::Pro => "bg-blue-100 text-blue-800",
-                                    TierType::Scale => "bg-purple-100 text-purple-800",
-                                };
-                                @let tier_label = match org.tier {
-                                    TierType::Free => "Free",
-                                    TierType::Pro => "Pro",
-                                    TierType::Scale => "Scale",
-                                };
-                                span class=(format!("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {}", tier_class)) {
-                                    (tier_label)
-                                }
-                                @let role_class = match org.role {
-                                    OrganizationRole::Owner => "bg-yellow-100 text-yellow-800",
-                                    OrganizationRole::Admin => "bg-green-100 text-green-800",
-                                    OrganizationRole::Member => "bg-gray-100 text-gray-800",
-                                };
-                                @let role_label = match org.role {
-                                    OrganizationRole::Owner => "Owner",
-                                    OrganizationRole::Admin => "Admin",
-                                    OrganizationRole::Member => "Member",
-                                };
-                                span class=(format!("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {}", role_class)) {
-                                    (role_label)
-                                }
-                            }
+    Ok(layout::base(
+        &format!("{} - Organization", org.name),
+        html! {
+            (layout::navbar(session.email(), "organizations"))
+            (layout::container(html! {
+                // Breadcrumb
+                nav class="mb-6" {
+                    ol class="flex items-center space-x-2 text-sm" {
+                        li {
+                            a href="/organizations" class="text-gray-500 hover:text-gray-700" { "Organizations" }
                         }
+                        li class="text-gray-400" { "/" }
+                        li class="text-gray-900 font-medium" { (org.name) }
                     }
                 }
 
-                // API Keys section
-                div {
-                    div class="flex items-center justify-between mb-4" {
-                        h2 class="text-xl font-bold text-gray-900" { "API Keys" }
-                        button
-                            onclick="document.getElementById('create-key-modal').classList.remove('hidden')"
-                            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
-                            svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" {
-                                path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" {}
-                            }
-                            "New API Key"
-                        }
-                    }
-
-                    @if api_keys.is_empty() {
-                        (layout::card("No API Keys", html! {
-                            div class="text-center py-12" {
-                                svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" {
-                                    path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" {}
+                div class="space-y-6" {
+                    // Organization header
+                    div class="bg-white shadow rounded-lg p-6" {
+                        div class="flex items-center justify-between" {
+                            div {
+                                h1 class="text-3xl font-bold text-gray-900" { (org.name) }
+                                p class="mt-2 text-sm text-gray-500" {
+                                    "Slug: " span class="font-mono" { (org.slug) }
                                 }
-                                h3 class="mt-2 text-sm font-medium text-gray-900" {
-                                    "No API keys"
-                                }
-                                p class="mt-1 text-sm text-gray-500" {
-                                    "Create an API key to start using the API."
-                                }
-                                div class="mt-6" {
-                                    button
-                                        onclick="document.getElementById('create-key-modal').classList.remove('hidden')"
-                                        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
-                                        "Create API Key"
+                                div class="mt-3 flex items-center space-x-2" {
+                                    @let tier_class = match org.tier {
+                                        TierType::Free => "bg-gray-100 text-gray-800",
+                                        TierType::Pro => "bg-blue-100 text-blue-800",
+                                        TierType::Scale => "bg-purple-100 text-purple-800",
+                                    };
+                                    @let tier_label = match org.tier {
+                                        TierType::Free => "Free",
+                                        TierType::Pro => "Pro",
+                                        TierType::Scale => "Scale",
+                                    };
+                                    span class=(format!("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {}", tier_class)) {
+                                        (tier_label)
+                                    }
+                                    @let role_class = match org.role {
+                                        OrganizationRole::Owner => "bg-yellow-100 text-yellow-800",
+                                        OrganizationRole::Admin => "bg-green-100 text-green-800",
+                                        OrganizationRole::Member => "bg-gray-100 text-gray-800",
+                                    };
+                                    @let role_label = match org.role {
+                                        OrganizationRole::Owner => "Owner",
+                                        OrganizationRole::Admin => "Admin",
+                                        OrganizationRole::Member => "Member",
+                                    };
+                                    span class=(format!("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {}", role_class)) {
+                                        (role_label)
                                     }
                                 }
                             }
-                        }))
-                    } @else {
-                        (api_keys_table(&api_keys, org_id))
+                        }
+                    }
+
+                    // API Keys section
+                    div {
+                        div class="flex items-center justify-between mb-4" {
+                            h2 class="text-xl font-bold text-gray-900" { "API Keys" }
+                            button
+                                onclick="document.getElementById('create-key-modal').classList.remove('hidden')"
+                                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
+                                svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" {
+                                    path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" {}
+                                }
+                                "New API Key"
+                            }
+                        }
+
+                        @if api_keys.is_empty() {
+                            (layout::card("No API Keys", html! {
+                                div class="text-center py-12" {
+                                    svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" {
+                                        path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" {}
+                                    }
+                                    h3 class="mt-2 text-sm font-medium text-gray-900" {
+                                        "No API keys"
+                                    }
+                                    p class="mt-1 text-sm text-gray-500" {
+                                        "Create an API key to start using the API."
+                                    }
+                                    div class="mt-6" {
+                                        button
+                                            onclick="document.getElementById('create-key-modal').classList.remove('hidden')"
+                                            class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
+                                            "Create API Key"
+                                        }
+                                    }
+                                }
+                            }))
+                        } @else {
+                            (api_keys_table(&api_keys, org_id))
+                        }
                     }
                 }
-            }
 
-            // Create API key modal
-            (create_api_key_modal(org_id, query.new.unwrap_or(false)))
-        }))
-    }))
+                // Create API key modal
+                (create_api_key_modal(org_id, query.new.unwrap_or(false)))
+            }))
+        },
+    ))
 }
 
 /// Render API keys table
@@ -352,21 +359,22 @@ pub async fn create(
         tracing::error!("Database error: {}", e);
         (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
     })?
-    .ok_or_else(|| {
-        (StatusCode::FORBIDDEN, "Access denied").into_response()
-    })?;
+    .ok_or_else(|| (StatusCode::FORBIDDEN, "Access denied").into_response())?;
 
     // Get organization tier
-    let org_tier = sqlx::query_scalar::<_, TierType>(
-        "SELECT tier FROM organizations WHERE id = $1",
-    )
-    .bind(org_id)
-    .fetch_one(pool)
-    .await
-    .map_err(|e| {
-        tracing::error!("Failed to fetch organization tier: {}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch organization tier").into_response()
-    })?;
+    let org_tier =
+        sqlx::query_scalar::<_, TierType>("SELECT tier FROM organizations WHERE id = $1")
+            .bind(org_id)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to fetch organization tier: {}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Failed to fetch organization tier",
+                )
+                    .into_response()
+            })?;
 
     // Generate UUIDv7 for the API key
     let key_id = Uuid::now_v7();
@@ -385,24 +393,25 @@ pub async fn create(
 
     // Sign the token
     let settings = crate::config::get_settings();
-    let private_key_bytes = hex::decode(&settings.token_private_key)
-        .map_err(|e| {
-            tracing::error!("Failed to decode private key: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to decode private key").into_response()
-        })?;
+    let private_key_bytes = hex::decode(&settings.token_private_key).map_err(|e| {
+        tracing::error!("Failed to decode private key: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to decode private key",
+        )
+            .into_response()
+    })?;
     let signing_key = ed25519_dalek::SigningKey::from_bytes(
-        &private_key_bytes[..32].try_into()
-            .map_err(|e| {
-                tracing::error!("Invalid key length: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Invalid key length").into_response()
-            })?
+        &private_key_bytes[..32].try_into().map_err(|e| {
+            tracing::error!("Invalid key length: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Invalid key length").into_response()
+        })?,
     );
 
-    let token = sign_token_direct(&token_data, &signing_key)
-        .map_err(|e| {
-            tracing::error!("Failed to sign token: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to sign token").into_response()
-        })?;
+    let token = sign_token_direct(&token_data, &signing_key).map_err(|e| {
+        tracing::error!("Failed to sign token: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to sign token").into_response()
+    })?;
 
     let full_token = format!("fe_{}", token);
 
@@ -420,7 +429,11 @@ pub async fn create(
     .await
     .map_err(|e| {
         tracing::error!("Failed to create API key: {}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create API key").into_response()
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to create API key",
+        )
+            .into_response()
     })?;
 
     // Show the token to the user (only once!)
@@ -479,22 +492,22 @@ pub async fn revoke(
         tracing::error!("Database error: {}", e);
         (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
     })?
-    .ok_or_else(|| {
-        (StatusCode::FORBIDDEN, "Access denied").into_response()
-    })?;
+    .ok_or_else(|| (StatusCode::FORBIDDEN, "Access denied").into_response())?;
 
     // Revoke the key
-    sqlx::query(
-        "UPDATE api_keys SET is_active = false WHERE id = $1 AND organization_id = $2",
-    )
-    .bind(key_id)
-    .bind(org_id)
-    .execute(pool)
-    .await
-    .map_err(|e| {
-        tracing::error!("Failed to revoke API key: {}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to revoke API key").into_response()
-    })?;
+    sqlx::query("UPDATE api_keys SET is_active = false WHERE id = $1 AND organization_id = $2")
+        .bind(key_id)
+        .bind(org_id)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to revoke API key: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to revoke API key",
+            )
+                .into_response()
+        })?;
 
     // Redirect back to organization page
     Ok(Redirect::to(&format!("/organizations/{}", org_id)).into_response())
