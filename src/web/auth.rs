@@ -372,7 +372,7 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Response,
     let slug = format!("user-{}-org", user.id);
     let org_name = format!("{}'s Organization", form.email);
 
-    let org_id = sqlx::query_scalar::<_, i64>(
+    let org_id = sqlx::query_scalar::<_, uuid::Uuid>(
         "INSERT INTO organizations (name, slug, owner_id, tier, is_active, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING id",
