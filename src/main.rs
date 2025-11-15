@@ -7,6 +7,7 @@ mod database;
 mod inference;
 mod models;
 mod monitoring;
+mod web;
 
 use axum::{
     http::Method,
@@ -78,9 +79,17 @@ async fn main() -> anyhow::Result<()> {
 
     // Setup routes
     let app = Router::new()
+        // Web UI routes (root domain)
+        .route("/", get(web::home))
+        .route("/login", get(web::auth::login_page))
+        .route("/login", post(web::auth::login_submit))
+        .route("/register", get(web::auth::register_page))
+        .route("/register", post(web::auth::register_submit))
+        .route("/dashboard", get(web::dashboard::show))
+        // API routes (will be moved to api. subdomain later)
         // Embedding API (CWT token authentication)
         .route("/v1/embed", post(api::create_embedding_handler))
-        // User authentication (no auth required)
+        // User authentication (admin token required)
         .route("/v1/auth/register", post(api::users::register_handler))
         .route("/v1/auth/login", post(api::users::login_handler))
         // User profile (JWT session required)
@@ -118,7 +127,7 @@ async fn main() -> anyhow::Result<()> {
         // Health and metrics
         .route("/health", get(api::health_handler))
         .route("/metrics", get(metrics_handler))
-        .route("/", get(api::root_handler))
+        .route("/api", get(api::root_handler))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))

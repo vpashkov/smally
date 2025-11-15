@@ -9,6 +9,7 @@ pub mod database;
 pub mod inference;
 pub mod models;
 pub mod monitoring;
+pub mod web;
 
 #[cfg(test)]
 pub mod test_utils;

@@ -1,0 +1,398 @@
+use axum::{
+    extract::Form,
+    http::StatusCode,
+    response::{IntoResponse, Redirect, Response},
+};
+use maud::{html, Markup};
+use serde::Deserialize;
+
+use crate::auth::session::create_session_token;
+use crate::database;
+use crate::models::{TierType, User};
+use bcrypt::{hash, verify, DEFAULT_COST};
+use chrono::Utc;
+
+use super::components::layout;
+
+/// Login form data
+#[derive(Debug, Deserialize)]
+pub struct LoginForm {
+    pub email: String,
+    pub password: String,
+}
+
+/// Register form data
+#[derive(Debug, Deserialize)]
+pub struct RegisterForm {
+    pub email: String,
+    pub password: String,
+    pub name: String,
+}
+
+/// Show login page
+pub async fn login_page() -> Markup {
+    layout::base("Login", html! {
+        div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" {
+            div class="max-w-md w-full space-y-8" {
+                div {
+                    h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900" {
+                        "Sign in to your account"
+                    }
+                    p class="mt-2 text-center text-sm text-gray-600" {
+                        "Or "
+                        a href="/register" class="font-medium text-primary hover:text-blue-500" {
+                            "create a new account"
+                        }
+                    }
+                }
+
+                // Login form
+                form class="mt-8 space-y-6" action="/login" method="POST" {
+                    input type="hidden" name="remember" value="true";
+
+                    div class="rounded-md shadow-sm -space-y-px" {
+                        div {
+                            label for="email" class="sr-only" { "Email address" }
+                            input
+                                id="email"
+                                name="email"
+                                type="email"
+                                autocomplete="email"
+                                required
+                                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                                placeholder="Email address";
+                        }
+                        div {
+                            label for="password" class="sr-only" { "Password" }
+                            input
+                                id="password"
+                                name="password"
+                                type="password"
+                                autocomplete="current-password"
+                                required
+                                class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                                placeholder="Password";
+                        }
+                    }
+
+                    div class="flex items-center justify-between" {
+                        div class="flex items-center" {
+                            input
+                                id="remember-me"
+                                name="remember-me"
+                                type="checkbox"
+                                class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded";
+                            label for="remember-me" class="ml-2 block text-sm text-gray-900" {
+                                "Remember me"
+                            }
+                        }
+
+                        div class="text-sm" {
+                            a href="#" class="font-medium text-primary hover:text-blue-500" {
+                                "Forgot your password?"
+                            }
+                        }
+                    }
+
+                    div {
+                        button
+                            type="submit"
+                            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
+                            "Sign in"
+                        }
+                    }
+                }
+            }
+        }
+    })
+}
+
+/// Show register page
+pub async fn register_page() -> Markup {
+    layout::base("Register", html! {
+        div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" {
+            div class="max-w-md w-full space-y-8" {
+                div {
+                    h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900" {
+                        "Create your account"
+                    }
+                    p class="mt-2 text-center text-sm text-gray-600" {
+                        "Already have an account? "
+                        a href="/login" class="font-medium text-primary hover:text-blue-500" {
+                            "Sign in"
+                        }
+                    }
+                }
+
+                // Register form
+                form class="mt-8 space-y-6" action="/register" method="POST" {
+                    div class="rounded-md shadow-sm space-y-4" {
+                        div {
+                            label for="name" class="block text-sm font-medium text-gray-700" { "Full name" }
+                            input
+                                id="name"
+                                name="name"
+                                type="text"
+                                required
+                                class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                                placeholder="John Doe";
+                        }
+                        div {
+                            label for="email" class="block text-sm font-medium text-gray-700" { "Email address" }
+                            input
+                                id="email"
+                                name="email"
+                                type="email"
+                                autocomplete="email"
+                                required
+                                class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                                placeholder="you@example.com";
+                        }
+                        div {
+                            label for="password" class="block text-sm font-medium text-gray-700" { "Password" }
+                            input
+                                id="password"
+                                name="password"
+                                type="password"
+                                autocomplete="new-password"
+                                required
+                                class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
+                                placeholder="At least 8 characters";
+                        }
+                    }
+
+                    div {
+                        button
+                            type="submit"
+                            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary" {
+                            "Create account"
+                        }
+                    }
+                }
+            }
+        }
+    })
+}
+
+/// Handle login form submission
+pub async fn login_submit(Form(form): Form<LoginForm>) -> Result<Redirect, Response> {
+    let pool = database::get_db();
+
+    // Find user by email
+    let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
+        .bind(&form.email)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
+        })?
+        .ok_or_else(|| {
+            (
+                StatusCode::UNAUTHORIZED,
+                layout::base("Login Failed", html! {
+                    div class="min-h-screen flex items-center justify-center bg-gray-50" {
+                        div class="max-w-md w-full" {
+                            (layout::alert("Invalid email or password", "error"))
+                            a href="/login" class="text-primary hover:text-blue-500" {
+                                "← Back to login"
+                            }
+                        }
+                    }
+                }),
+            )
+                .into_response()
+        })?;
+
+    // Check if user is active
+    if !user.is_active {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            layout::base("Account Disabled", html! {
+                div class="min-h-screen flex items-center justify-center bg-gray-50" {
+                    div class="max-w-md w-full" {
+                        (layout::alert("Your account has been disabled", "error"))
+                        a href="/login" class="text-primary hover:text-blue-500" {
+                            "← Back to login"
+                        }
+                    }
+                }
+            }),
+        )
+            .into_response());
+    }
+
+    // Verify password
+    let password_hash = user.password_hash.as_ref().ok_or_else(|| {
+        (
+            StatusCode::UNAUTHORIZED,
+            "Invalid email or password".to_string(),
+        )
+            .into_response()
+    })?;
+
+    let valid = verify(&form.password, password_hash).map_err(|e| {
+        tracing::error!("Password verification error: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Password verification failed",
+        )
+            .into_response()
+    })?;
+
+    if !valid {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            layout::base("Login Failed", html! {
+                div class="min-h-screen flex items-center justify-center bg-gray-50" {
+                    div class="max-w-md w-full" {
+                        (layout::alert("Invalid email or password", "error"))
+                        a href="/login" class="text-primary hover:text-blue-500" {
+                            "← Back to login"
+                        }
+                    }
+                }
+            }),
+        )
+            .into_response());
+    }
+
+    // Generate session token
+    let token = create_session_token(user.id, &user.email).map_err(|e| {
+        tracing::error!("Failed to create session token: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to create session",
+        )
+            .into_response()
+    })?;
+
+    // TODO: Set session cookie instead of just redirecting
+    // For now, just redirect to dashboard
+    // In the next iteration, we'll add proper session management with cookies
+
+    Ok(Redirect::to("/dashboard"))
+}
+
+/// Handle register form submission
+pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Redirect, Response> {
+    let pool = database::get_db();
+
+    // Check if user already exists
+    let existing = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
+        .bind(&form.email)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response()
+        })?;
+
+    if existing.is_some() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            layout::base("Registration Failed", html! {
+                div class="min-h-screen flex items-center justify-center bg-gray-50" {
+                    div class="max-w-md w-full" {
+                        (layout::alert("Email already registered", "error"))
+                        a href="/register" class="text-primary hover:text-blue-500" {
+                            "← Back to registration"
+                        }
+                    }
+                }
+            }),
+        )
+            .into_response());
+    }
+
+    // Hash password
+    let password_hash = hash(&form.password, DEFAULT_COST).map_err(|e| {
+        tracing::error!("Password hashing failed: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Password hashing failed",
+        )
+            .into_response()
+    })?;
+
+    // Create user
+    let user = sqlx::query_as::<_, User>(
+        "INSERT INTO users (email, name, password_hash, tier, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *",
+    )
+    .bind(&form.email)
+    .bind(&form.name)
+    .bind(&password_hash)
+    .bind(TierType::Free)
+    .bind(true)
+    .bind(Utc::now().naive_utc())
+    .bind(Utc::now().naive_utc())
+    .fetch_one(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to create user: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create user").into_response()
+    })?;
+
+    // Create personal organization
+    let slug = format!("user-{}-org", user.id);
+    let org_name = format!("{}'s Organization", form.email);
+
+    let org_id = sqlx::query_scalar::<_, i64>(
+        "INSERT INTO organizations (name, slug, owner_id, tier, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id",
+    )
+    .bind(&org_name)
+    .bind(&slug)
+    .bind(user.id)
+    .bind(TierType::Free)
+    .bind(true)
+    .bind(Utc::now().naive_utc())
+    .bind(Utc::now().naive_utc())
+    .fetch_one(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to create organization: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to create organization",
+        )
+            .into_response()
+    })?;
+
+    // Add user as owner
+    sqlx::query(
+        "INSERT INTO organization_members (organization_id, user_id, role, created_at)
+         VALUES ($1, $2, $3, $4)",
+    )
+    .bind(org_id)
+    .bind(user.id)
+    .bind("owner")
+    .bind(Utc::now().naive_utc())
+    .execute(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to add organization member: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to add organization member",
+        )
+            .into_response()
+    })?;
+
+    // Generate session token
+    let _session_token = create_session_token(user.id, &user.email).map_err(|e| {
+        tracing::error!("Failed to create session token: {}", e);
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to create session",
+        )
+            .into_response()
+    })?;
+
+    // TODO: Set session cookie
+    // For now, redirect to login
+    Ok(Redirect::to("/login"))
+}

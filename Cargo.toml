@@ -86,6 +86,9 @@ seahash = "4.1"
 # COSE/CWT (CBOR Object Signing and Encryption / CBOR Web Tokens)
 coset = "0.3"
 
+# HTML templating
+maud = { version = "0.26", features = ["axum"] }
+
 [build-dependencies]
 chrono = "0.4"
 rustc_version = "0.4"
