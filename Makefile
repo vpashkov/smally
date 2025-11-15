@@ -64,7 +64,7 @@ build:
 	cargo build --release
 
 run:
-	cargo run --release
+	cargo run --release --bin api
 
 # Development with auto-reload (requires cargo-watch)
 dev:
@@ -72,7 +72,7 @@ dev:
 	@echo "💡 Edit files in src/ and save to see changes"
 	@echo "⏱️  Typical rebuild: 3-5 seconds"
 	@echo ""
-	cargo watch -c -q -w src -x run
+	cargo watch -c -q -w src -x 'run --bin api'
 
 # Fast UI iteration (watches only web files)
 dev-ui:
@@ -80,7 +80,7 @@ dev-ui:
 	@echo "💡 Only watches src/web/ for changes"
 	@echo "⏱️  Typical rebuild: 2-3 seconds"
 	@echo ""
-	cargo watch -c -q -w src/web -x run
+	cargo watch -c -q -w src/web -x 'run --bin api'
 
 # Check code without running (super fast)
 dev-check:
