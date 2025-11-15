@@ -35,9 +35,13 @@ const sidebars = {
         'guides/rate-limits',
       ],
     },
+    // Add API Reference section with auto-generated API docs
+    {
+      type: 'category',
+      label: 'API Reference',
+      items: apiSidebar,
+    },
   ],
-  // Import the auto-generated API sidebar
-  apisidebar: apiSidebar,
 };
 
 module.exports = sidebars;

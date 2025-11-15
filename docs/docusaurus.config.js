@@ -77,7 +77,20 @@ const config = {
     ],
   ],
 
-  themes: ["docusaurus-theme-openapi-docs"],
+  themes: [
+    "docusaurus-theme-openapi-docs",
+    [
+      "@easyops-cn/docusaurus-search-local",
+      {
+        hashed: true,
+        language: ["en"],
+        highlightSearchTermsOnTargetPage: true,
+        explicitSearchResultPath: true,
+        searchBarPosition: "left",
+        docsRouteBasePath: '/' // Must match presetsdocs..routeBasePath
+      },
+    ],
+  ],
 
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
@@ -90,15 +103,8 @@ const config = {
         },
         items: [
           {
-            type: 'docSidebar',
-            sidebarId: 'tutorialSidebar',
+            type: 'search',
             position: 'left',
-            label: 'Documentation',
-          },
-          {
-            to: '/api/embeddings',
-            position: 'left',
-            label: 'API Reference',
           },
           {
             href: 'https://github.com/your-org/smally',
