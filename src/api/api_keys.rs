@@ -327,9 +327,10 @@ mod tests {
         assert!(key_response.is_active);
         assert!(key_response.token.is_some());
 
-        // Verify token starts with prefix
+        // Verify token starts with configured prefix
         let token_str = key_response.token.unwrap();
-        assert!(token_str.starts_with("fe_"));
+        let settings = crate::config::get_settings();
+        assert!(token_str.starts_with(&settings.api_key_prefix));
 
         cleanup_db().await;
     }

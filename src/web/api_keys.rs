@@ -240,6 +240,7 @@ pub async fn show(
 
 /// Render API keys table
 fn api_keys_table(api_keys: &[APIKey], org_id: uuid::Uuid) -> Markup {
+    let settings = crate::config::get_settings();
     html! {
         div class="bg-white shadow overflow-hidden sm:rounded-lg" {
             table class="min-w-full divide-y divide-gray-200" {
@@ -260,7 +261,7 @@ fn api_keys_table(api_keys: &[APIKey], org_id: uuid::Uuid) -> Markup {
                                 div class="text-sm font-medium text-gray-900" { (key.name) }
                             }
                             td class="px-6 py-4 whitespace-nowrap" {
-                                code class="text-xs text-gray-600" { (format!("fe_{}...", &key.key_id.to_string()[..8])) }
+                                code class="text-xs text-gray-600" { (format!("{}{}...", settings.api_key_prefix, &key.key_id.to_string()[..8])) }
                             }
                             td class="px-6 py-4 whitespace-nowrap" {
                                 @if key.is_active {
@@ -470,7 +471,8 @@ pub async fn create(
         (StatusCode::INTERNAL_SERVER_ERROR, "Failed to sign token").into_response()
     })?;
 
-    let full_token = format!("fe_{}", token);
+    let settings = crate::config::get_settings();
+    let full_token = format!("{}{}", settings.api_key_prefix, token);
 
     // Save to database
     sqlx::query(

@@ -122,7 +122,16 @@ pub async fn create_embedding_handler(
         ));
     }
 
-    let token = parts[1];
+    let full_token = parts[1];
+
+    // Check if token has configured prefix and strip it
+    let settings = config::get_settings();
+    let token = if full_token.starts_with(&settings.api_key_prefix) {
+        &full_token[settings.api_key_prefix.len()..] // Remove prefix
+    } else {
+        // Allow tokens without prefix for backward compatibility
+        full_token
+    };
 
     // Validate token
     let validator = auth::get_validator();
