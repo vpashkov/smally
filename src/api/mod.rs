@@ -243,7 +243,7 @@ pub async fn create_embedding_handler(
     };
 
     // Increment usage using token claims
-    let _ = billing::increment_usage_from_claims(&claims).await;
+    let _ = billing::increment_usage_from_claims(&claims, token_count).await;
 
     // Calculate total latency
     let total_latency_ms = start_time.elapsed().as_millis() as f64;

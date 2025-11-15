@@ -18,7 +18,7 @@ pub mod helpers {
 
         INIT.call_once(|| {
             // Load test environment variables
-            dotenvy::from_filename(".env.test").ok();
+            dotenvy::from_filename(".env").ok();
 
             // Initialize tracing for tests
             tracing_subscriber::fmt()

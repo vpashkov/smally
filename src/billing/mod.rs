@@ -20,6 +20,7 @@ struct UsageRecord {
     organization_id: uuid::Uuid,
     api_key_id: uuid::Uuid,
     embeddings_count: i32,
+    tokens: i32,
     timestamp: NaiveDateTime,
 }
 
@@ -45,12 +46,13 @@ impl UsageBuffer {
     }
 
     // Record a usage event (non-blocking)
-    pub fn record(&self, organization_id: uuid::Uuid, api_key_id: uuid::Uuid) {
+    pub fn record(&self, organization_id: uuid::Uuid, api_key_id: uuid::Uuid, tokens: i32) {
         let now = chrono::Local::now().naive_local();
         let record = UsageRecord {
             organization_id,
             api_key_id,
             embeddings_count: 1,
+            tokens,
             timestamp: now,
         };
 
@@ -75,13 +77,14 @@ impl UsageBuffer {
 
         // Batch insert using QueryBuilder
         let mut query_builder = sqlx::QueryBuilder::new(
-            "INSERT INTO usage (organization_id, api_key_id, embeddings_count, timestamp) ",
+            "INSERT INTO usage (organization_id, api_key_id, embeddings_count, tokens, timestamp) ",
         );
 
         query_builder.push_values(records, |mut b, record| {
             b.push_bind(record.organization_id)
                 .push_bind(record.api_key_id)
                 .push_bind(record.embeddings_count)
+                .push_bind(record.tokens)
                 .push_bind(record.timestamp);
         });
 
@@ -217,7 +220,7 @@ async fn check_rate_limit_redis_from_claims(
 }
 
 /// Increment usage using token claims (no DB needed for lookup)
-pub async fn increment_usage_from_claims(claims: &TokenClaims) -> Result<()> {
+pub async fn increment_usage_from_claims(claims: &TokenClaims, tokens: usize) -> Result<()> {
     let org_id = claims.org_id();
     let api_key_id = claims.key_id();
     let tier = claims.tier()?;
@@ -237,7 +240,7 @@ pub async fn increment_usage_from_claims(claims: &TokenClaims) -> Result<()> {
     }
 
     // Buffer the usage record (for billing/analytics)
-    get_usage_buffer().record(org_id, api_key_id);
+    get_usage_buffer().record(org_id, api_key_id, tokens as i32);
 
     Ok(())
 }

@@ -19,6 +19,10 @@ path = "src/bin/generate_keypair.rs"
 name = "create_token"
 path = "src/bin/create_token.rs"
 
+[[bin]]
+name = "create_api_key"
+path = "src/bin/create_api_key.rs"
+
 [dependencies]
 # Async runtime
 tokio = { version = "1.43", features = ["full"] }
