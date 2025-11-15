@@ -195,7 +195,7 @@ retry_after = int(response.headers['Retry-After'])
 time.sleep(retry_after)
 
 # Option 2: Upgrade tier
-# Visit: http://localhost:8000/dashboard/billing
+# Visit: http://localhost:8000/billing
 
 # Option 3: Use caching more effectively
 # Identical requests are free!

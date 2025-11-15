@@ -116,7 +116,6 @@ async fn main() -> anyhow::Result<()> {
         .route("/register", get(web::auth::register_page))
         .route("/register", post(web::auth::register_submit))
         .route("/logout", post(web::auth::logout_submit))
-        .route("/dashboard", get(web::dashboard::show))
         .route("/organizations", get(web::organizations::list))
         .route("/organizations", post(web::organizations::create))
         .route("/switch-org/:org_id", get(web::organizations::switch_org))

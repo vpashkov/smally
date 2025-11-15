@@ -14,7 +14,7 @@ pub fn base(title: &str, content: Markup) -> Markup {
                 script src="https://cdn.tailwindcss.com" {}
 
                 // HTMX for dynamic interactions
-                script src="https://unpkg.com/htmx.org@1.9.10" {}
+                script src="https://unpkg.com/htmx.org@1.9.10" defer {}
 
                 // Custom configuration for Tailwind
                 script {
@@ -40,7 +40,11 @@ pub fn base(title: &str, content: Markup) -> Markup {
 }
 
 /// Navigation bar for authenticated pages with organization switcher
-pub fn navbar(user_email: &str, current_org: Option<(&str, &str)>, other_orgs: &[(&str, &str)]) -> Markup {
+pub fn navbar(
+    user_email: &str,
+    current_org: Option<(&str, &str)>,
+    other_orgs: &[(&str, &str)],
+) -> Markup {
     html! {
         nav class="bg-white shadow-sm border-b border-gray-200" {
             div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" {
@@ -48,8 +52,9 @@ pub fn navbar(user_email: &str, current_org: Option<(&str, &str)>, other_orgs: &
                     div class="flex items-center" {
                         // Logo
                         div class="flex-shrink-0 flex items-center" {
-                            a href="/dashboard" class="text-2xl font-bold text-primary" {
-                                "Smally"
+                            a href="/organizations" class="flex items-center gap-2" {
+                                (logo())
+                                span class="text-2xl font-bold text-primary" { "Smally" }
                             }
                         }
 
@@ -169,6 +174,46 @@ pub fn card(title: &str, content: Markup) -> Markup {
                 }
                 (content)
             }
+        }
+    }
+}
+
+/// Smally logo - "S" on fire
+pub fn logo() -> Markup {
+    html! {
+        svg width="40" height="40" viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg" class="inline-block" {
+            defs {
+                // Gradient for fire effect
+                linearGradient id="fireGradient" x1="0%" y1="0%" x2="0%" y2="100%" {
+                    stop offset="0%" style="stop-color:#ff6b00;stop-opacity:1" {}
+                    stop offset="50%" style="stop-color:#ff8800;stop-opacity:1" {}
+                    stop offset="100%" style="stop-color:#ffa500;stop-opacity:1" {}
+                }
+                // Gradient for the S letter
+                linearGradient id="letterGradient" x1="0%" y1="0%" x2="0%" y2="100%" {
+                    stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" {}
+                    stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" {}
+                }
+            }
+
+            // Flame shapes (background)
+            path d="M 30,90 Q 25,75 30,60 Q 35,70 30,90 Z" fill="url(#fireGradient)" opacity="0.6" {
+                animate attributeName="d" values="M 30,90 Q 25,75 30,60 Q 35,70 30,90 Z; M 30,90 Q 28,73 30,55 Q 32,68 30,90 Z; M 30,90 Q 25,75 30,60 Q 35,70 30,90 Z" dur="1.5s" repeatCount="indefinite" {}
+            }
+            path d="M 50,95 Q 45,80 50,65 Q 55,75 50,95 Z" fill="url(#fireGradient)" opacity="0.7" {
+                animate attributeName="d" values="M 50,95 Q 45,80 50,65 Q 55,75 50,95 Z; M 50,95 Q 47,78 50,60 Q 53,73 50,95 Z; M 50,95 Q 45,80 50,65 Q 55,75 50,95 Z" dur="1.8s" repeatCount="indefinite" {}
+            }
+            path d="M 70,90 Q 65,75 70,60 Q 75,70 70,90 Z" fill="url(#fireGradient)" opacity="0.6" {
+                animate attributeName="d" values="M 70,90 Q 65,75 70,60 Q 75,70 70,90 Z; M 70,90 Q 68,73 70,55 Q 72,68 70,90 Z; M 70,90 Q 65,75 70,60 Q 75,70 70,90 Z" dur="2s" repeatCount="indefinite" {}
+            }
+
+            // The "S" letter
+            path d="M 65,25 Q 75,20 75,30 Q 75,40 50,45 Q 25,50 25,60 Q 25,70 35,75 M 35,75 Q 25,70 25,60 Q 25,50 50,45 Q 75,40 75,30 Q 75,15 55,20"
+                  fill="none"
+                  stroke="url(#letterGradient)"
+                  stroke-width="8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round" {}
         }
     }
 }

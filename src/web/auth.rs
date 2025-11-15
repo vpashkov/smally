@@ -20,7 +20,7 @@ fn validate_redirect_url(url: &str) -> String {
     if url.starts_with('/') && !url.starts_with("//") {
         url.to_string()
     } else {
-        "/dashboard".to_string()
+        "/organizations".to_string()
     }
 }
 
@@ -48,7 +48,6 @@ pub struct RegisterForm {
 
 /// Show login page
 pub async fn login_page(Query(redirect): Query<RedirectQuery>) -> Markup {
-    let next = redirect.next.as_deref().unwrap_or("/dashboard");
     layout::base(
         "Login",
         html! {
@@ -69,7 +68,9 @@ pub async fn login_page(Query(redirect): Query<RedirectQuery>) -> Markup {
                     // Login form
                     form class="mt-8 space-y-6" action="/login" method="POST" {
                         input type="hidden" name="remember" value="true";
-                        input type="hidden" name="next" value=(next);
+                        @if let Some(next) = redirect.next {
+                            input type="hidden" name="next" value=(next);
+                        }
 
                         div class="rounded-md shadow-sm -space-y-px" {
                             div {
@@ -206,7 +207,7 @@ pub async fn login_submit(Form(form): Form<LoginForm>) -> Result<Response, Respo
     // Find user by email
     let user = sqlx::query_as!(
         User,
-        "SELECT id, email, name, password_hash, is_active, created_at, updated_at
+        "SELECT id, email, name, password_hash, is_active, last_selected_org_id, created_at, updated_at
          FROM users WHERE email = $1",
         &form.email
     )
@@ -308,12 +309,24 @@ pub async fn login_submit(Form(form): Form<LoginForm>) -> Result<Response, Respo
     // Create session cookie
     let cookie = create_session_cookie(&token);
 
+    println!("User {} logged in", user.email);
+    println!(
+        "User last_selected_org_id {}",
+        user.last_selected_org_id.unwrap_or_default()
+    );
+    println!("Redirect next {:?}", form.next);
+
     // Validate and determine redirect URL
-    let redirect_url = form
-        .next
-        .as_deref()
-        .map(validate_redirect_url)
-        .unwrap_or_else(|| "/dashboard".to_string());
+    let redirect_url = if let Some(next) = form.next.as_deref() {
+        // If explicit redirect URL provided, use it
+        validate_redirect_url(next)
+    } else if let Some(org_id) = user.last_selected_org_id {
+        // Redirect to last selected organization
+        format!("/organizations/{}", org_id.simple())
+    } else {
+        // Default to organizations list
+        "/organizations".to_string()
+    };
 
     // Return redirect with Set-Cookie header
     let mut response = Redirect::to(&redirect_url).into_response();
@@ -331,7 +344,7 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Response,
     // Check if user already exists
     let existing = sqlx::query_as!(
         User,
-        "SELECT id, email, name, password_hash, is_active, created_at, updated_at
+        "SELECT id, email, name, password_hash, is_active, last_selected_org_id, created_at, updated_at
          FROM users WHERE email = $1",
         &form.email
     )
@@ -368,17 +381,21 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Response,
         (StatusCode::INTERNAL_SERVER_ERROR, "Password hashing failed").into_response()
     })?;
 
-    // Create user
+    // Generate organization ID on server (using v7 for time-ordered UUIDs)
+    let org_id = uuid::Uuid::now_v7();
     let now = Utc::now().naive_utc();
+
+    // Create user with last_selected_org_id set to personal organization
     let user = sqlx::query_as!(
         User,
-        "INSERT INTO users (email, name, password_hash, is_active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id, email, name, password_hash, is_active, created_at, updated_at",
+        "INSERT INTO users (email, name, password_hash, is_active, last_selected_org_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, email, name, password_hash, is_active, last_selected_org_id, created_at, updated_at",
         &form.email,
         &form.name,
         &password_hash,
         true,
+        org_id,
         now,
         now
     )
@@ -389,21 +406,21 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Response,
         (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create user").into_response()
     })?;
 
-    // Create personal organization
+    // Create personal organization with generated ID
     let org_name = format!("{}'s Organization", form.email);
 
-    let org_id = sqlx::query_scalar::<_, uuid::Uuid>(
-        "INSERT INTO organizations (name, owner_id, tier, is_active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id",
+    sqlx::query(
+        "INSERT INTO organizations (id, name, owner_id, tier, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)",
     )
+    .bind(org_id)
     .bind(&org_name)
     .bind(user.id)
     .bind(TierType::Free)
     .bind(true)
-    .bind(Utc::now().naive_utc())
-    .bind(Utc::now().naive_utc())
-    .fetch_one(pool)
+    .bind(now)
+    .bind(now)
+    .execute(pool)
     .await
     .map_err(|e| {
         tracing::error!("Failed to create organization: {}", e);
@@ -447,8 +464,9 @@ pub async fn register_submit(Form(form): Form<RegisterForm>) -> Result<Response,
     // Create session cookie
     let cookie = create_session_cookie(&token);
 
-    // Return redirect with Set-Cookie header (auto-login after registration)
-    let mut response = Redirect::to("/dashboard").into_response();
+    // Redirect to the personal organization page (not the list)
+    let redirect_url = format!("/organizations/{}", org_id.simple());
+    let mut response = Redirect::to(&redirect_url).into_response();
     response
         .headers_mut()
         .insert(header::SET_COOKIE, cookie.to_string().parse().unwrap());

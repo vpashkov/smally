@@ -263,19 +263,23 @@ pub async fn create(
     let pool = database::get_db();
     let user_id = session.user_id();
 
-    // Create organization
-    let org_id = sqlx::query_scalar::<_, uuid::Uuid>(
-        "INSERT INTO organizations (name, owner_id, tier, is_active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id",
+    // Generate organization ID on server (using v7 for time-ordered UUIDs)
+    let org_id = uuid::Uuid::now_v7();
+    let now = Utc::now().naive_utc();
+
+    // Create organization with generated ID
+    sqlx::query(
+        "INSERT INTO organizations (id, name, owner_id, tier, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)",
     )
+    .bind(org_id)
     .bind(&form.name)
     .bind(user_id)
     .bind(TierType::Free)
     .bind(true)
-    .bind(Utc::now().naive_utc())
-    .bind(Utc::now().naive_utc())
-    .fetch_one(pool)
+    .bind(now)
+    .bind(now)
+    .execute(pool)
     .await
     .map_err(|e| {
         tracing::error!("Failed to create organization: {}", e);
@@ -294,7 +298,7 @@ pub async fn create(
     .bind(org_id)
     .bind(user_id)
     .bind(OrganizationRole::Owner)
-    .bind(Utc::now().naive_utc())
+    .bind(now)
     .execute(pool)
     .await
     .map_err(|e| {
@@ -306,8 +310,24 @@ pub async fn create(
             .into_response()
     })?;
 
-    // Redirect to organizations list
-    Ok(Redirect::to("/organizations").into_response())
+    // Update user's last selected organization to the new one
+    sqlx::query("UPDATE users SET last_selected_org_id = $1 WHERE id = $2")
+        .bind(org_id)
+        .bind(user_id)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to update last_selected_org_id: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to update user preferences",
+            )
+                .into_response()
+        })?;
+
+    // Redirect to the newly created organization page
+    let redirect_url = format!("/organizations/{}", org_id.simple());
+    Ok(Redirect::to(&redirect_url).into_response())
 }
 
 /// Switch organization context
@@ -352,6 +372,21 @@ pub async fn switch_org(
             .into_response());
     }
 
+    // Update user's last selected organization
+    sqlx::query("UPDATE users SET last_selected_org_id = $1 WHERE id = $2")
+        .bind(org_id)
+        .bind(user_id)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to update last_selected_org_id: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to update user preferences",
+            )
+                .into_response()
+        })?;
+
     // Create new session token with organization context
     let token = create_session_token_with_org(user_id, session.email(), Some(org_id)).map_err(
         |e| {
@@ -367,8 +402,8 @@ pub async fn switch_org(
     // Create session cookie
     let cookie = create_session_cookie(&token);
 
-    // Redirect to dashboard with new session
-    let mut response = Redirect::to("/dashboard").into_response();
+    // Redirect to organizations with new session
+    let mut response = Redirect::to("/organizations").into_response();
     response
         .headers_mut()
         .insert(header::SET_COOKIE, cookie.to_string().parse().unwrap());

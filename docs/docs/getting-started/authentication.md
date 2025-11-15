@@ -36,7 +36,7 @@ cargo run --bin create_api_key -- \
 
 #### Using the Web UI
 
-1. Log in to your dashboard at `http://localhost:8000/dashboard`
+1. Log in at `http://localhost:8000/login` (redirects to organizations page)
 2. Navigate to your organization
 3. Click "Create API Key"
 4. Give it a descriptive name

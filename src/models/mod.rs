@@ -64,6 +64,7 @@ pub struct User {
     #[serde(skip_serializing)]
     pub password_hash: Option<String>,
     pub is_active: bool,
+    pub last_selected_org_id: Option<Uuid>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }

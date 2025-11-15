@@ -65,12 +65,12 @@ print(f"Used: {limit - remaining}/{limit}")
 print(f"Resets: {reset}")
 ```
 
-### Dashboard
+### Organizations
 
 View usage in real-time:
 
 ```
-http://localhost:8000/dashboard
+http://localhost:8000/organizations
 ```
 
 - Current usage
@@ -270,8 +270,8 @@ Upgrade when you consistently:
 
 ```bash
 # Contact sales for tier upgrade
-# Or visit dashboard
-http://localhost:8000/dashboard/billing
+# Or visit organizations
+http://localhost:8000/organizations
 ```
 
 Changes take effect immediately.
@@ -341,4 +341,4 @@ Contact support if issue persists.
 
 - [Caching](/docs/guides/caching) - Reduce quota usage with caching
 - [API Reference](/api) - Full API documentation
-- [Dashboard](http://localhost:8000/dashboard) - Monitor usage
+- [Organizations](http://localhost:8000/organizations) - Monitor usage
